@@ -139,6 +139,7 @@ class Mesh:
             ax.set_ylim(self.z.min() - offset*self.dz, self.z.max() + offset*self.dz)
             ax.set_xlabel('x [m]')
             ax.set_ylabel('z [m]')
+            ax.set_aspect('equal')
 
             for z in down_sample(self.z, N):
                 ax.plot(self.x, z.repeat(self.nx), 'k', linewidth=0.5)
@@ -175,7 +176,7 @@ class Mesh:
     def _plot_areas(self, ax, area, fcolor='k', annotations=True):
 
         for a in area:
-            rect = patches.Rectangle((self.x[a.ix[0]], self.z[a.iz[1]]),
+            rect = patches.Rectangle((self.x[a.ix[0]], self.z[a.iz[0]]),
                                      self.x[a.ix[1]]-self.x[a.ix[0]],
                                      self.z[a.iz[1]]-self.z[a.iz[0]],
                                      linewidth=3, edgecolor='r', facecolor=fcolor, alpha=0.5)

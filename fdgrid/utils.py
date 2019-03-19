@@ -31,6 +31,49 @@ Some tools.
 import numpy as np
 
 
+def get_rectangles(mask):
+    """ find rectangles in a ndarray of 0 and 1. """
+
+    output = []
+
+    for ix in range(mask.shape[0]):
+        for iz in range(mask.shape[1]):
+            if mask[ix, iz] == 0:
+                _get_rectangle_coordinates(ix, iz, mask, output)
+
+    return output
+
+
+def _get_rectangle_coordinates(ix, iz, mask, output):
+    """ Subfunction of get_rectangles. """
+
+    output.append([ix, iz])
+
+    for i in range(ix, mask.shape[0]):
+        if i == mask.shape[0]-1:
+            output[-1].append(i)
+        elif mask[i][iz] != 0 :
+            output[-1].append(i-1)
+            break
+
+
+    for j in range(iz, mask.shape[1]):
+        if j == mask.shape[1]-1:
+            output[-1].append(j)
+        if np.any(mask[output[-1][0]:output[-1][2], j]) != 0:
+            output[-1].append(j-1)
+            break
+
+    mask[output[-1][0]:output[-1][2]+1, output[-1][1]:output[-1][3]+1] = 1
+
+
+
+
+def split_discontinuous(array):
+    idx = np.argwhere(np.diff(array) != 1).ravel()
+    return [[min(l), max(l)] for l in np.split(array, idx+1)]
+
+
 def remove_dups(lst):
     """ Remove duplicates from a list. Works with a list of list. """
     tmp = []

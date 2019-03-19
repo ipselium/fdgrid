@@ -39,20 +39,18 @@ class TemplateConstructionError(Exception):
 
 def random(nx, nz):
     """ Random arrangement of obstacles. """
-    return [Subdomain([0, 0, 40, 40], 'RRRR'),
+    return [Subdomain([0, 0, 60, 40], 'RRRR'),
+            Subdomain([23, 40, 33, 50], 'RRRR'),
+            Subdomain([56, 40, 60, 60], 'RRRR'),
             Subdomain([100, 80, 120, 90], 'RRRR'),
-            Subdomain([200, 60, 220, nz-1], 'RRRR'),
-            Subdomain([220, 100, nx-1, nz-1], 'RRRR')]
+            Subdomain([90, 20, 110, 30], 'RRRR'),
+            Subdomain([nx-90, nz-90, nx-60, nz-1], 'RRRR'),
+            Subdomain([nx-60, nz-11, nx-1, nz-1], 'RRRR'),
+            Subdomain([nx-60, nz-44, nx-30, nz-34], 'RRRR'),
+            Subdomain([nx-60, nz-80, nx-40, nz-67], 'RRRR')]
 
 
-def test_case(nx, nz):
-    """ Critical case. To investigate !"""
-    return [Subdomain([0, 0, 10, 103], 'RRRR'),             # Issue with 18 and 5
-            Subdomain([300, 250, 511, 255], 'RRRR'),
-            Subdomain([90, 130, 130, 200], 'RRRR')]
-
-
-def helmholtz(nx, nz, cavity=(0.2, 0.2), neck=(0.05, 0.01)):
+def helmholtz(nx, nz, cavity=(0.2, 0.2), neck=(0.1, 0.1)):
     """ Helmholtz resonator.
 
     Parameters:
@@ -65,21 +63,20 @@ def helmholtz(nx, nz, cavity=(0.2, 0.2), neck=(0.05, 0.01)):
 
     neck_width = int(nx*neck[0])
     cvty_width = int(nx*cavity[0])
+    neck_height = int(nz*neck[1])
+    cvty_height = int(nz*cavity[1])
+
     neck_ix = int((nx - neck_width)/2)
     cvty_ix = int((nx - cvty_width)/2)
 
-    neck_height = int(nx*neck[1])
-    cvty_height = int(nx*cavity[1])
-    neck_iz = int((nz - neck_height)/2)
-    cvty_iz = int((nz - cvty_height)/2)
 
     if cavity[0] + neck[0] > 0.98 or cavity[1] + neck[1] > 0.98:
         raise TemplateConstructionError("resonator must be smaller than the domain")
 
-    return [Subdomain([0, 0, cvty_ix, cvty_iz], 'RRRR'),
-            Subdomain([cvty_ix+cvty_width, 0, nx-1, cvty_iz], 'RRRR'),
-            Subdomain([0, cvty_iz, neck_ix, cvty_height+neck_height], 'RRRR'),
-            Subdomain([neck_ix+neck_width, cvty_iz, nx-1, cvty_height+neck_height], 'RRRR')]
+    return [Subdomain([0, 0, cvty_ix, cvty_height], 'RRRR'),
+            Subdomain([cvty_ix+cvty_width, 0, nx-1, cvty_height], 'RRRR'),
+            Subdomain([0, cvty_height, neck_ix, cvty_height+neck_height], 'RRRR'),
+            Subdomain([neck_ix+neck_width, cvty_height, nx-1, cvty_height+neck_height], 'RRRR')]
 
 
 def plus(nx, nz, ix0=None, iz0=None, size=20):

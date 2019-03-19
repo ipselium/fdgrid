@@ -41,76 +41,7 @@ import itertools
 import numpy as np
 import matplotlib.pyplot as plt
 from dataclasses import dataclass
-from .utils import remove_dups
-
-
-def _find_end(i, j, mask, output, index, include_boundaries):
-    """ From https://www.geeksforgeeks.org/find-rectangles-filled-0/ """
-
-    # pylint: disable=too-many-arguments
-
-    flagc = 0     # flag to check column edge case
-    flagr = 0     # flag to check row edge case
-
-    for m in range(i, mask.shape[0]):
-
-        if mask[m][j] == 1:
-            flagr = 1
-            break          # breaks where first 1 encounters
-
-        if mask[m][j] == 5:
-            continue           # pass because already processed
-
-        for n in range(j, mask.shape[1]):
-
-            if mask[m][n] != 0:
-                flagc = 1
-                break      # breaks where first 1 encounters
-
-            mask[m][n] = 5    # fill rectangle elements with any  number
-
-    if flagr == 1 and not include_boundaries:
-        output[index].append(m-1)
-    else:
-        output[index].append(m)  # If end point touch the boundary
-
-    if flagc == 1 and not include_boundaries:
-        output[index].append(n-1)
-    else:
-        output[index].append(n)  # If end point touch the boundary
-
-
-def get_rectangle_coordinates(array, include_boundaries=False):
-    """
-    From https://www.geeksforgeeks.org/find-rectangles-filled-0/
-
-    Get coordinates of rectangle areas of 0 in an array
-
-    Parameters
-    ----------
-    array:
-
-    Returns
-    -------
-    output: list of rectangle coordinates [[xmin, ymin, xmax, ymax], [...]]
-
-    """
-
-    mask = array.copy()
-    output = []
-    index = -1
-
-    for i in range(mask.shape[0]):
-        for j in range(mask.shape[1]):
-            if mask[i, j] == 0:
-                if include_boundaries:
-                    output.append([max(0, i-1), max(0, j-1)])  # Initial position
-                else:
-                    output.append([i, j])  # Initial position
-                index = index + 1      # Used for last postion
-                _find_end(i, j, mask, output, index, include_boundaries)
-
-    return output
+from .utils import remove_dups, split_discontinuous, get_rectangles
 
 
 class BoundsNotFoundError(Exception):
@@ -139,21 +70,39 @@ class Subdomain:
         self.sx = slice(self.xz[0], self.xz[2]+1)
         self.sz = slice(self.xz[1], self.xz[3]+1)
 
+    def union(self, other):
+
+        edges = self._which_edge(other)
+
+        if edges:
+            if (0, 2) in edges:
+                return self.xz[0], slice(self.xz[1]+1, self.xz[3])
+            elif (2, 0) in edges:
+                return self.xz[2], slice(self.xz[1]+1, self.xz[3])
+            elif (1, 3) in edges:
+                return slice(self.xz[0]+1, self.xz[2]), self.xz[1]
+            elif (3, 1) in edges:
+                return slice(self.xz[0]+1, self.xz[2]), self.xz[3]
+        return
+
     def _which_edge(self, other):
         """ Search for common edges. """
 
         edges = []
 
-        if self.axis == 'x':
+        if self.axis == 'x' or other.axis == 'x':
             indexes = [(0, 2, 1, 3)]
-        elif self.axis == 'z':
+        elif self.axis == 'z' or other.axis == 'z':
             indexes = [(1, 3, 0, 2)]
         else:
             indexes = [(0, 2, 1, 3), (1, 3, 0, 2)]
 
         for a, b, c, d in indexes:
             for i, j in itertools.product([a, b], repeat=2):
-                if self.xz[i] == other.xz[j] and self.xz[c] >= other.xz[c] and self.xz[d] <= other.xz[d]:
+                c1 = other.xz[j] - 1 <= self.xz[i] <= other.xz[j] + 1
+                c2 = self.xz[c] >= other.xz[c] and self.xz[d] <= other.xz[d]
+                c3 = other.xz[c] >= self.xz[c] and other.xz[d] <= self.xz[d]
+                if c1 and (c2 or c3):
                     edges.append((i, j))
 
         return edges
@@ -169,10 +118,33 @@ class Subdomain:
         for edge in edges:
             if other.bc[edge[1]] != '.':
                 bc_lst[edge[0]] = other.bc[edge[1]]
+            else:
+                if other.axis:
+                    bc_lst[edge[0]] = 'C'
 
         self.bc = ''.join(bc_lst)
 
         return self.bc
+
+
+@dataclass
+class Patch:
+    """ Patched area of the computation domain. """
+    xz: list
+    axis: str = ''
+
+    def __post_init__(self):
+
+        if self.axis == 'x':
+            self.ix = [self.xz[0], self.xz[2]]
+            self.iz = self.xz[1]
+
+        elif self.axis == 'z':
+            self.ix = self.xz[0]
+            self.iz = [self.xz[1], self.xz[3]]
+
+        self.sx = slice(self.xz[0], self.xz[2]+1)
+        self.sz = slice(self.xz[1], self.xz[3]+1)
 
 
 class Domain:
@@ -190,131 +162,204 @@ class Domain:
         self._zmask = self._xmask.copy()
         self._xdomains = []
         self._zdomains = []
+        self._patches = []
         self._nd = 0                             # Index of the subdomain
 
         # Fill mask with obstacles
-        for obs in self._obstacles:
-            self._xmask[obs.xz[0]:obs.xz[2]+1, obs.xz[1]:obs.xz[3]+1] = 1
-            self._zmask[obs.xz[0]:obs.xz[2]+1, obs.xz[1]:obs.xz[3]+1] = 1
+        self._init_masks()
 
         # Search computation domains
+        self._find_domains()
+
+        # Check if domain is completely processed
+        self._check_domains()
+
+    def _init_masks(self):
+        """ Init masks with obstacles. """
+
         for obs in self._obstacles:
-            self._right(obs)
-            self._left(obs)
-            self._top(obs)
-            self._bottom(obs)
+            for mask in [self._xmask, self._zmask]:
+                mask[obs.sx, obs.sz] = -1
+                mask[obs.sx, obs.iz] = -2
+                mask[obs.ix, obs.sz] = -2
+
+        for obs1, obs2 in itertools.permutations(self._obstacles, r=2):
+            c = obs1.union(obs2)
+            if c:
+                self._xmask[c[0], c[1]] = -1
+                self._zmask[c[0], c[1]] = -1
+
+    def _find_domains(self):
+        """ Find computation domains. """
+        for obs in self._obstacles:
+            if obs.ix[1] != self._nx-1:
+                self._right(obs)
+            if obs.ix[0] != 0:
+                self._left(obs)
+            if obs.iz[1] != self._nz-1:
+                self._top(obs)
+            if obs.iz[0] != 0:
+                self._bottom(obs)
 
         self._xbetween()
         self._zbetween()
         self._fill()
-        self._fill_bc()
-        self._check_domains()
+        self._update_patches()
 
     def _check_domains(self):
         """ Make some tests to check if all subdomains are well defined. """
-        self._check_missings()
-        self._check_bc()
+        self._is_domain_complete()
+        self._fill_bc()
+        self._is_bc_complete()
 
-    def _check_missings(self):
+    def _is_domain_complete(self):
         """ Check if the whole computation domain is subdivided. """
         if self.missings[0].size or self.missings[1].size:
             warnings.warn("Uncomplete computation domain. See domains.show_missings() method.")
+            return False
+        return True
 
-    def _check_bc(self):
+    def _is_bc_complete(self):
         """ Check if all boundary conditions are specified. """
         lst = [c for i in range(2) for c in self.listing[i] if c.bc.count('.') > 2]
         if lst:
             warnings.warn("Undefined boundary for {}. Check subdomains.".format(lst[0].no))
+            return False
+        return True
 
     def _fill_bc(self):
         """ Fill missing boundary conditions. """
-        all_subdomains = [c for i in range(2) for c in self.listing[i]]
-        empty_subdomain = [s for s in all_subdomains if s.bc == '....']
-        whole_domain = Subdomain([0, 0, self._nx-1, self._nz-1], bc=self._bc)
+        whole_domain = Subdomain([0, 0, self._nx-1, self._nz-1], bc=self._bc, no=0)
+        fdomain = self._obstacles + [whole_domain]
 
-        for subdomain in empty_subdomain:
-
-            _ = subdomain@whole_domain
-
-            for other in all_subdomains:
-                _ = subdomain@other
-
-            for obstacle in self._obstacles:
-                _ = subdomain@obstacle
+        for i in range(2):
+            for sub1, sub2 in itertools.permutations(self.listing[i] + fdomain, r=2):
+                if sub1.axis or sub2.axis:
+                    _ = sub1@sub2
 
     def _top(self, obs):
-        """ Extrude top wall of the obstacle. """
-        xc1, zc1 = obs.xz[0], obs.xz[3]
-        xc2, zc2 = obs.xz[2], obs.xz[3]
-        bc = '.R.{}'.format(self._bc[3])
-        for j in range(zc1+1, self._nz):
-            zc2 = j
-            if np.any(self._zmask[xc1+1:xc2, j] != 0):
-                if np.all(self._zmask[xc1+1:xc2, j] != 0):
-                    bc = '.R.R'
-                else:
-                    zc2 = int((zc1+zc2)/2)
-                    if 2 <= zc2 - zc1 < self._stencil:
-                        raise CloseObstaclesError(CloseObstaclesError.msg.format(obs, self._stencil))
-                    bc = '.R.C'
-                break
-
-        if zc1 + 1 < zc2:
-            self._update_domains(Subdomain([xc1, zc1, xc2, zc2], bc, self.nd, 'z'))
+        s = self._zmask[obs.sx, obs.iz[1]+1]
+        tmp = np.argwhere(s==0).ravel()
+        if len(tmp) > 0:
+            lst = split_discontinuous(tmp + obs.ix[0])
+            for idx in lst:
+                self._extrude_top(obs, idx)
 
     def _bottom(self, obs):
-        """ Extrude bottom wall of the obstacle. """
-        xc1, zc1 = obs.xz[0], obs.xz[1]
-        xc2, zc2 = obs.xz[2], obs.xz[1]
-        bc = '.{}.R'.format(self._bc[1])
-        for j in range(zc1-1, -1, -1):
-            zc2 = j
-            if np.any(self._zmask[xc1+1:xc2, j] != 0):
-                if np.all(self._zmask[xc1+1:xc2, j] != 0):
-                    bc = '.R.R'
-                else:
-                    bc = '.C.R'
-                break
-
-        if zc1 - 1 > zc2:
-            self._update_domains(Subdomain([xc1, zc2, xc2, zc1], bc, self.nd, 'z'))
+        s = self._zmask[obs.sx, obs.iz[0]-1]
+        tmp = np.argwhere(s==0).ravel()
+        if len(tmp) > 0:
+            lst = split_discontinuous(tmp + obs.ix[0])
+            for idx in lst:
+                self._extrude_bottom(obs, idx)
 
     def _right(self, obs):
-        """ Extrude right wall of the obstacle. """
-        xc1, zc1 = obs.xz[2], obs.xz[1]
-        xc2, zc2 = obs.xz[2], obs.xz[3]
-        bc = 'R.{}.'.format(self._bc[2])
-        for i in range(xc1 + 1, self._nx):
-            xc2 = i
-            if np.any(self._xmask[i, zc1+1:zc2] != 0):
-                if np.all(self._xmask[i, zc1+1:zc2] != 0):
-                    bc = 'R.R.'
-                else:
-                    xc2 = int((xc1+xc2)/2)
-                    if 2 <= xc2 - xc1 < self._stencil:
-                        raise CloseObstaclesError(CloseObstaclesError.msg.format(obs, self._stencil))
-                    bc = 'R.C.'
-                break
-
-        if xc1 + 1 < xc2:
-            self._update_domains(Subdomain([xc1, zc1, xc2, zc2], bc, self.nd, 'x'))
+        s = self._xmask[obs.ix[1]+1, obs.sz]
+        tmp = np.argwhere(s==0).ravel()
+        if len(tmp) > 0:
+            lst = split_discontinuous(tmp + obs.iz[0])
+            for idz in lst:
+                self._extrude_right(obs, idz)
 
     def _left(self, obs):
-        """ Extrude left wall of the obstacle. """
-        xc1, zc1 = obs.xz[0], obs.xz[1]
-        xc2, zc2 = obs.xz[0], obs.xz[3]
-        bc = '{}.R.'.format(self._bc[0])
-        for i in range(xc1-1, -1, -1):
-            xc2 = i
-            if np.any(self._xmask[i, zc1+1:zc2] != 0):
-                if np.all(self._xmask[i, zc1+1:zc2] != 0):
-                    bc = 'R.R.'
+        s = self._xmask[obs.ix[0]-1, obs.sz]
+        tmp = np.argwhere(s==0).ravel()
+        if len(tmp) > 0:
+            lst = split_discontinuous(tmp + obs.iz[0])
+            for idz in lst:
+                self._extrude_left(obs, idz)
+
+    def _extrude_top(self, obs, idx):
+        """ Extrude top wall of the obstacle. """
+        xc1, zc1 = idx[0], obs.xz[3]
+        xc2, zc2 = idx[1], obs.xz[3]
+        bc = '.{}.{}'.format(obs.bc[3], self._bc[3])
+        for j in range(zc1+1, self._nz):
+            zc2 = j
+            mk = self._zmask[xc1+1:xc2, j]
+            if np.any(mk != 0):
+                if np.all(mk == -2):
+                    bc = '.{}.R'.format(obs.bc[3])
+                elif np.any(mk == -2):
+                    zc2 = int((zc1+zc2)/2 - 1)
+                    bc = '.{}.C'.format(obs.bc[3])
                 else:
-                    bc = 'C.R.'
+                    zc2 -= 1
                 break
 
-        if xc1 - 1 > xc2:
-            self._update_domains(Subdomain([xc2, zc1, xc1, zc2], bc, self.nd, 'x'))
+        if abs(zc2 - zc1) < self._stencil:
+            raise CloseObstaclesError(CloseObstaclesError.msg.format(obs, self._stencil))
+
+        self._update_domains(Subdomain([xc1, zc1, xc2, zc2], bc, self.nd, 'z'))
+
+    def _extrude_bottom(self, obs, idx):
+        """ Extrude bottom wall of the obstacle. """
+        xc1, zc1 = idx[0], obs.xz[1]
+        xc2, zc2 = idx[1], obs.xz[1]
+        bc = '.{}.{}'.format(self._bc[1], obs.bc[1])
+        for j in range(zc1-1, -1, -1):
+            zc2 = j
+            mk = self._zmask[xc1+1:xc2, j]
+            if np.any(mk != 0):
+                if np.all(mk == -2):
+                    bc = '.R.{}'.format(obs.bc[1])
+                elif np.any(mk == -2):
+                    zc2 = int((zc1+zc2)/2 + 1)
+                    bc = '.C.{}'.format(obs.bc[1])
+                else:
+                    zc2 +=1
+                break
+
+        if abs(zc2 - zc1) < self._stencil:
+            raise CloseObstaclesError(CloseObstaclesError.msg.format(obs, self._stencil))
+
+        self._update_domains(Subdomain([xc1, zc2, xc2, zc1], bc, self.nd, 'z'))
+
+    def _extrude_right(self, obs, idz):
+        xc1, zc1 = obs.xz[2], idz[0]
+        xc2, zc2 = obs.xz[2], idz[1]
+        bc = '{}.{}.'.format(obs.bc[2], self._bc[2])
+        for i in range(xc1 + 1, self._nx):
+            xc2 = i
+            mk = self._xmask[i, zc1+1:zc2]
+            if np.any(mk != 0):
+                if np.all(mk != 0):
+                    bc = '{}.R.'.format(obs.bc[2])
+                elif np.any(mk == -2):
+                    xc2 = int((xc1+xc2)/2 - 1)
+                    bc = '{}.C.'.format(obs.bc[2])
+                else:
+                    xc2 -= 1
+                break
+
+        if abs(xc2 - xc1) < self._stencil:
+            print(obs, abs(xc2-xc1))
+            raise CloseObstaclesError(CloseObstaclesError.msg.format(obs, self._stencil))
+
+        self._update_domains(Subdomain([xc1, zc1, xc2, zc2], bc, self.nd, 'x'))
+
+    def _extrude_left(self, obs, idz):
+        """ Extrude left wall of the obstacle. """
+        xc1, zc1 = obs.xz[0], idz[0]
+        xc2, zc2 = obs.xz[0], idz[1]
+        bc = '{}.{}.'.format(self._bc[0], obs.bc[0])
+        for i in range(xc1-1, -1, -1):
+            xc2 = i
+            mk = self._xmask[i, zc1+1:zc2]
+            if np.any(mk != 0):
+                if np.all(mk == -2):
+                    bc = 'R.{}.'.format(obs.bc[0])
+                elif np.any(mk == -2):
+                    xc2 = int((xc1+xc2)/2 + 1)
+                    bc = 'C.{}.'.format(obs.bc[0])
+                else:
+                    xc2 += 1
+                break
+
+        if abs(xc2 - xc1) < self._stencil:
+            raise CloseObstaclesError(CloseObstaclesError.msg.format(obs, self._stencil))
+
+        self._update_domains(Subdomain([xc2, zc1, xc1, zc2], bc, self.nd, 'x'))
 
     def _xbetween(self):
         """ Find domains between obstacles along z axis. """
@@ -335,38 +380,50 @@ class Domain:
             void = [[i[0], 0, i[1], self._nz-1] for i in idx if i[2] == 'v']
             void = remove_dups(void)
             for sub in void:
-                self._update_domains(Subdomain(sub, '{}.{}.'.format(self._bc[1], self._bc[3]),
+                self._update_domains(Subdomain(sub, '.{}.{}'.format(self._bc[1], self._bc[3]),
                                                self.nd, 'z'))
 
     def _fill(self):
         """ Search remaining domains along both x and z axises. """
-        xmissings = get_rectangle_coordinates(self._xmask, include_boundaries=True)
-        zmissings = get_rectangle_coordinates(self._zmask, include_boundaries=True)
+        xmissings = get_rectangles(self._xmask)
+        zmissings = get_rectangles(self._zmask)
         for c in xmissings:
             self._update_domains(Subdomain(c, no=self.nd, axis='x'))
 
         for c in zmissings:
             self._update_domains(Subdomain(c, no=self.nd, axis='z'))
 
-    def _update_domains(self, c, val=1):
+    def _update_patches(self, val=1):
+        """ Add patches. """
+
+        xmiss, zmiss = self.missings
+
+        idx = list(set(xmiss[:, 1]))
+        idz = list(set(zmiss[:, 0]))
+
+        lx = np.array([[xmiss[i, 0] for i in range(len(xmiss[:, 0])) if xmiss[i, 1] == ix] for ix in idx])
+        lz = np.array([[zmiss[i, 1] for i in range(len(zmiss[:, 0])) if zmiss[i, 0] == iz] for iz in idz])
+
+#        print(lx, lz)
+#
+#        for c in range(len(idx)):
+#            self._patches.append(Patch([lx[c].min(), idx[c], lx[c].max(), idx[c]], axis='x'))
+#            self._xmask[self._patches[-1].sx, self._patches[-1].sz] = val
+#
+#        for c in range(len(idz)):
+#            self._patches.append(Patch([idz[c], lz[c].min(), idz[c], lz[c].max()], axis='z'))
+#            self._zmask[self._patches[-1].sx, self._patches[-1].sz] = val
+
+    def _update_domains(self, sub, val=1):
         """ Update mask and list of subdomains. """
-        if c.xz[2] == self._nx - 1:
-            xslice = slice(c.xz[0], None)
-        else:
-            xslice = slice(c.xz[0], c.xz[2]+1)
 
-        if c.xz[3] == self._nz - 1:
-            zslice = slice(c.xz[1], None)
-        else:
-            zslice = slice(c.xz[1], c.xz[3]+1)
+        if sub.axis == 'x':
+            self._xmask[sub.sx, sub.sz] = val
+            self._xdomains.append(sub)
 
-        if c.axis == 'x':
-            self._xmask[xslice, zslice] = val
-            self._xdomains.append(c)
-
-        elif c.axis == 'z':
-            self._zmask[xslice, zslice] = val
-            self._zdomains.append(c)
+        elif sub.axis == 'z':
+            self._zmask[sub.sx, sub.sz] = val
+            self._zdomains.append(sub)
 
     @property
     def nd(self):
@@ -376,19 +433,22 @@ class Domain:
 
     def show_missings(self):
         """ Plot missing subdomains. """
-        plt.figure(figsize=(9, 3))
-        plt.subplot(1, 2, 1)
-        plt.plot(self.missings[0][:, 0], self.missings[0][:, 1], 'o')
-        plt.axis([-10, self._nx+10, -10, self._nz+10])
-        plt.subplot(1, 2, 2)
-        plt.plot(self.missings[1][:, 0], self.missings[1][:, 1], 'o')
-        plt.axis([-10, self._nx+10, -10, self._nz+10])
+        fig, ax = plt.subplots(1, 2, figsize=(9, 3))
+        ax[0].plot(self.missings[0][:, 0], self.missings[0][:, 1], 'ro')
+        ax[0].imshow(self._xmask.T)
+        ax[0].axis([-10, self._nx+10, -10, self._nz+10])
+        ax[1].plot(self.missings[1][:, 0], self.missings[1][:, 1], 'ro')
+        ax[1].imshow(self._zmask.T)
+        ax[1].axis([-10, self._nx+10, -10, self._nz+10])
+        fig.suptitle(r'Missing points')
         plt.show()
 
     @property
     def missings(self):
         """ List missings. Returns a tuple of ndarray ([array along x], [array along z]]). """
-        return np.argwhere(self._xmask == 0), np.argwhere(self._zmask == 0)
+        x = np.argwhere(np.logical_or(self._xmask == 0, self._xmask == -2))
+        z = np.argwhere(np.logical_or(self._zmask == 0, self._zmask == -2))
+        return x, z
 
     @property
     def listing(self):
@@ -434,10 +494,11 @@ class Domain:
             void_bounds = [(void_sets[i], void_sets[i+1])
                            for i in list(*np.where(np.diff(void_sets) != 1))]
             void_bounds = [min(void_sets), *[i for sub in void_bounds for i in sub], max(void_sets)]
-            void_bounds = [(void_bounds[i], void_bounds[i+1]+1, 'v') if void_bounds[i+1] != N-1
-                           else (void_bounds[i], void_bounds[i+1], 'v')
+            void_bounds = [(void_bounds[i]+1, void_bounds[i+1], 'v') if void_bounds[i] !=0
+                            else (void_bounds[i], void_bounds[i+1], 'v')
                            for i in range(0, len(void_bounds)-1, 2)
                            if void_bounds[i] != void_bounds[i+1]]
+
 
         out = obs_bounds + void_bounds
         out.sort()
@@ -446,7 +507,7 @@ class Domain:
 
     @staticmethod
     def split_bounds(lst, N):
-        """ Split bound in order to get sets that don't have common ranges.
+        """ Split bounds in order to get sets that don't have common ranges.
         As an example :
 
         lst = [(0, 10, 'v'), (10, 180, 'o'), (90, 120), 'o']
