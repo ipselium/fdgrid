@@ -140,7 +140,7 @@ class Subdomain:
                 bc_lst[edge[0]] = other.bc[edge[1]]
             else:
                 if other.axis:
-                    bc_lst[edge[0]] = 'C'
+                    bc_lst[edge[0]] = 'X'
 
         self.bc = ''.join(bc_lst)
 
@@ -285,7 +285,7 @@ class Domain:
                     bc = '.{}.R'.format(obs.bc[3])
                 elif np.any(mk == -2):
                     zc2 = int((zc1+zc2)/2 - 1)
-                    bc = '.{}.C'.format(obs.bc[3])
+                    bc = '.{}.X'.format(obs.bc[3])
                 else:
                     zc2 -= 1
                 break
@@ -308,7 +308,7 @@ class Domain:
                     bc = '.R.{}'.format(obs.bc[1])
                 elif np.any(mk == -2):
                     zc2 = int((zc1+zc2)/2 + 1)
-                    bc = '.C.{}'.format(obs.bc[1])
+                    bc = '.X.{}'.format(obs.bc[1])
                 else:
                     zc2 +=1
                 break
@@ -330,7 +330,7 @@ class Domain:
                     bc = '{}.R.'.format(obs.bc[2])
                 elif np.any(mk == -2):
                     xc2 = int((xc1+xc2)/2 - 1)
-                    bc = '{}.C.'.format(obs.bc[2])
+                    bc = '{}.X.'.format(obs.bc[2])
                 else:
                     xc2 -= 1
                 break
@@ -354,7 +354,7 @@ class Domain:
                     bc = 'R.{}.'.format(obs.bc[0])
                 elif np.any(mk == -2):
                     xc2 = int((xc1+xc2)/2 + 1)
-                    bc = 'C.{}.'.format(obs.bc[0])
+                    bc = 'X.{}.'.format(obs.bc[0])
                 else:
                     xc2 += 1
                 break
@@ -392,7 +392,7 @@ class Domain:
         zmissings = find_areas(self._zmask, val=0)
         for c in xmissings:
 
-            bc = ['C', '.', 'C', '.']
+            bc = ['X', '.', 'X', '.']
             if c[0] == 0:
                 bc[0] = self._bc[0]
             if c[2] == self._nx - 1:
@@ -402,7 +402,7 @@ class Domain:
 
         for c in zmissings:
 
-            bc = ['.', 'C', '.', 'C']
+            bc = ['.', 'X', '.', 'X']
             if c[1] == 0:
                 bc[1] = self._bc[1]
             if c[3] == self._nz - 1:
@@ -418,12 +418,12 @@ class Domain:
             if patch[0] == 0:
                 bc[0] = self._bc[0]
             else:
-                bc[0] = 'C' if self._xmask[patch[0]-1, patch[1]] == 1 else 'R'
+                bc[0] = 'X' if self._xmask[patch[0]-1, patch[1]] == 1 else 'R'
 
             if patch[2] == self._nx - 1:
                 bc[2] = self._bc[2]
             else:
-                bc[2] = 'C' if self._xmask[patch[2]+1, patch[1]] == 1 else 'R'
+                bc[2] = 'X' if self._xmask[patch[2]+1, patch[1]] == 1 else 'R'
 
             self._update_domains(Subdomain(patch, axis='x', no=self.nd,
                                            bc=''.join(bc), patch=True))
@@ -433,12 +433,12 @@ class Domain:
             if patch[1] == 0:
                 bc[1] = self._bc[1]
             else:
-                bc[1] = 'C' if self._xmask[patch[0], patch[1]-1] == 1 else 'R'
+                bc[1] = 'X' if self._xmask[patch[0], patch[1]-1] == 1 else 'R'
 
             if patch[3] == self._nz - 1:
                 bc[3] = self._bc[3]
             else:
-                bc[3] = 'C' if self._xmask[patch[0], patch[3]+1] == 1 else 'R'
+                bc[3] = 'X' if self._xmask[patch[0], patch[3]+1] == 1 else 'R'
 
             self._update_domains(Subdomain(patch, axis='z', no=self.nd,
                                            bc=''.join(bc), patch=True))
