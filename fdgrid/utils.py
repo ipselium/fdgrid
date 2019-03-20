@@ -29,47 +29,46 @@ Some tools.
 """
 
 import numpy as np
+import scipy.ndimage as ndimage
 
 
-def get_rectangles(mask):
-    """ find rectangles in a ndarray of 0 and 1. """
+def find_areas(array, val=0):
+    """
+    Find rectangles areas in 'array' with value 'val'. Return a list of
+    coordinates as:
 
-    output = []
-
-    for ix in range(mask.shape[0]):
-        for iz in range(mask.shape[1]):
-            if mask[ix, iz] == 0:
-                _get_rectangle_coordinates(ix, iz, mask, output)
-
-    return output
-
-
-def _get_rectangle_coordinates(ix, iz, mask, output):
-    """ Subfunction of get_rectangles. """
-
-    output.append([ix, iz])
-
-    for i in range(ix, mask.shape[0]):
-        if i == mask.shape[0]-1:
-            output[-1].append(i)
-        elif mask[i][iz] != 0 :
-            output[-1].append(i-1)
-            break
-
-
-    for j in range(iz, mask.shape[1]):
-        if j == mask.shape[1]-1:
-            output[-1].append(j)
-        if np.any(mask[output[-1][0]:output[-1][2], j]) != 0:
-            output[-1].append(j-1)
-            break
-
-    mask[output[-1][0]:output[-1][2]+1, output[-1][1]:output[-1][3]+1] = 1
+        [(xmin, ymin, xmax, ymax), (...)]
+    """
+    regions, n = ndimage.label(array == val)
+    indexes = []
+    for i in range(1, n+1):
+        c = np.argwhere(regions == i)
+        c_check = remove_dups(split_discontinuous(c[:,1]))
+        if len(c_check) == 1:
+            indexes.append(tuple(c[0]) + tuple(c[-1]))
+        else:
+            idz = remove_dups(split_discontinuous(c[:,1]))
+            idz_size = [i[1]-i[0]+1 for i in idz]
+            idx = [(i, list(c[:,0]).count(i)) for i in set(c[:,0])]
+            idx = [[i[0] for i in idx if i[1] == iz] for iz in idz_size]
+            idx = [(ix[0], ix[-1]) for ix in idx]
+            coord = [(i[0], j[0], i[1], j[1]) for i, j in zip(idx, idz)]
+            for c in coord:
+                indexes.append(c)
+    return indexes
 
 
+def remove_singles(array, size=1, oldval=-2, newval=-1):
+    """ Replace isolated points of oldval to newval in array.  """
+    mask = (array == oldval)
+    regions, n = ndimage.label(mask)
+    sizes = np.array(ndimage.sum(mask, regions, range(n + 1)))
+    mask = (sizes == size)[regions]
+    array[mask] = newval
 
 
 def split_discontinuous(array):
+    """ Split discontinuous array. """
     idx = np.argwhere(np.diff(array) != 1).ravel()
     return [[min(l), max(l)] for l in np.split(array, idx+1)]
 

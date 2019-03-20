@@ -73,10 +73,14 @@ def helmholtz(nx, nz, cavity=(0.2, 0.2), neck=(0.1, 0.1)):
     if cavity[0] + neck[0] > 0.98 or cavity[1] + neck[1] > 0.98:
         raise TemplateConstructionError("resonator must be smaller than the domain")
 
-    return [Subdomain([0, 0, cvty_ix, cvty_height], 'RRRR'),
-            Subdomain([cvty_ix+cvty_width, 0, nx-1, cvty_height], 'RRRR'),
-            Subdomain([0, cvty_height, neck_ix, cvty_height+neck_height], 'RRRR'),
-            Subdomain([neck_ix+neck_width, cvty_height, nx-1, cvty_height+neck_height], 'RRRR')]
+    return [Subdomain([0, 0,
+                       cvty_ix, cvty_height], 'RRRR'),
+            Subdomain([cvty_ix+cvty_width, 0,
+                       nx-1, cvty_height], 'RRRR'),
+            Subdomain([0, cvty_height,
+                       neck_ix, cvty_height+neck_height], 'RRRR'),
+            Subdomain([neck_ix+neck_width, cvty_height,
+                       nx-1, cvty_height+neck_height], 'RRRR')]
 
 
 def plus(nx, nz, ix0=None, iz0=None, size=20):
@@ -101,10 +105,14 @@ def plus(nx, nz, ix0=None, iz0=None, size=20):
     ix_start = int(ix0 - 1.5*size)
     iz_start = int(iz0 - 0.5*size)
 
-    return [Subdomain([ix_start, iz_start, ix_start+size, iz_start+size], 'RRRR'),
-            Subdomain([ix_start+2*size, iz_start, ix_start+3*size, iz_start+size], 'RRRR'),
-            Subdomain([ix_start+size, iz_start-size, ix_start+2*size, iz_start], 'RRRR'),
-            Subdomain([ix_start+size, iz_start+size, ix_start+2*size, iz_start+2*size], 'RRRR')]
+    return [Subdomain([ix_start, iz_start,
+                       ix_start+size, iz_start+size], 'RRRR'),
+            Subdomain([ix_start+2*size, iz_start,
+                       ix_start+3*size, iz_start+size], 'RRRR'),
+            Subdomain([ix_start+size, iz_start-size,
+                       ix_start+2*size, iz_start], 'RRRR'),
+            Subdomain([ix_start+size, iz_start+size,
+                       ix_start+2*size, iz_start+2*size], 'RRRR')]
 
 
 def square(nx, nz, size_percent=20):
@@ -113,9 +121,11 @@ def square(nx, nz, size_percent=20):
     Parameters:
     -----------
 
-    size_percent (float): size of the square in percent of the largest dimension of the domain.
+    size_percent (float): size of the square in percent of the largest
+    dimension of the domain.
     """
 
     size = int(min(nx, nz)*size_percent/100)
 
-    return [Subdomain([int(nx/2)-size, int(nz/2)-size, int(nx/2)+size, int(nz/2)+size])]
+    return [Subdomain([int(nx/2)-size, int(nz/2)-size,
+                       int(nx/2)+size, int(nz/2)+size], 'RRRR')]

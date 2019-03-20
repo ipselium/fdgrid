@@ -41,7 +41,8 @@ import itertools
 import numpy as np
 import matplotlib.pyplot as plt
 from dataclasses import dataclass
-from .utils import remove_dups, split_discontinuous, get_rectangles
+from .utils import remove_dups, remove_singles
+from .utils import split_discontinuous, find_areas
 
 
 class BoundsNotFoundError(Exception):
@@ -62,6 +63,7 @@ class Subdomain:
     bc: str = '....'
     no: str = ''
     axis: str = ''
+    patch: bool = False
 
     def __post_init__(self):
 
@@ -70,7 +72,8 @@ class Subdomain:
         self.sx = slice(self.xz[0], self.xz[2]+1)
         self.sz = slice(self.xz[1], self.xz[3]+1)
 
-    def union(self, other):
+    def intersection(self, other):
+        """ Return common borders with another object. """
 
         edges = self._which_edge(other)
 
@@ -84,6 +87,24 @@ class Subdomain:
             elif (3, 1) in edges:
                 return slice(self.xz[0]+1, self.xz[2]), self.xz[3]
         return
+
+    def touch(self, other):
+        """ Return borders that touch the domain. """
+
+        edges = self._which_edge(other)
+        coords = []
+
+        if edges:
+            for c in edges:
+                if c == (0, 0) and other.bc[0] is not 'P':
+                    coords.append((self.xz[0], slice(self.xz[1]+1, self.xz[3])))
+                elif c == (1, 1) and other.bc[1] is not 'P':
+                    coords.append((slice(self.xz[0]+1, self.xz[2]), self.xz[1]))
+                elif c == (2, 2) and other.bc[2] is not 'P':
+                    coords.append((self.xz[2], slice(self.xz[1]+1, self.xz[3])))
+                elif c == (3, 3) and other.bc[3] is not 'P':
+                    coords.append((slice(self.xz[0]+1, self.xz[2]), self.xz[3]))
+        return coords
 
     def _which_edge(self, other):
         """ Search for common edges. """
@@ -101,8 +122,7 @@ class Subdomain:
             for i, j in itertools.product([a, b], repeat=2):
                 c1 = other.xz[j] - 1 <= self.xz[i] <= other.xz[j] + 1
                 c2 = self.xz[c] >= other.xz[c] and self.xz[d] <= other.xz[d]
-                c3 = other.xz[c] >= self.xz[c] and other.xz[d] <= self.xz[d]
-                if c1 and (c2 or c3):
+                if c1 and c2:
                     edges.append((i, j))
 
         return edges
@@ -127,26 +147,6 @@ class Subdomain:
         return self.bc
 
 
-@dataclass
-class Patch:
-    """ Patched area of the computation domain. """
-    xz: list
-    axis: str = ''
-
-    def __post_init__(self):
-
-        if self.axis == 'x':
-            self.ix = [self.xz[0], self.xz[2]]
-            self.iz = self.xz[1]
-
-        elif self.axis == 'z':
-            self.ix = self.xz[0]
-            self.iz = [self.xz[1], self.xz[3]]
-
-        self.sx = slice(self.xz[0], self.xz[2]+1)
-        self.sz = slice(self.xz[1], self.xz[3]+1)
-
-
 class Domain:
     """ Divide computation domain in several subdomains based on obstacle in presence. """
 
@@ -163,7 +163,10 @@ class Domain:
         self._xdomains = []
         self._zdomains = []
         self._patches = []
-        self._nd = 0                             # Index of the subdomain
+        self._nd = 0                             # Index of the subdomains
+
+        # The whole domain
+        self.whole_domain = Subdomain([0, 0, self._nx-1, self._nz-1], bc=self._bc, no=0)
 
         # Fill mask with obstacles
         self._init_masks()
@@ -172,7 +175,7 @@ class Domain:
         self._find_domains()
 
         # Check if domain is completely processed
-        self._check_domains()
+        self._check_subdomains()
 
     def _init_masks(self):
         """ Init masks with obstacles. """
@@ -184,10 +187,20 @@ class Domain:
                 mask[obs.ix, obs.sz] = -2
 
         for obs1, obs2 in itertools.permutations(self._obstacles, r=2):
-            c = obs1.union(obs2)
+            c = obs1.intersection(obs2)
             if c:
                 self._xmask[c[0], c[1]] = -1
                 self._zmask[c[0], c[1]] = -1
+
+        for obs in self._obstacles:
+            coords = obs.touch(self.whole_domain)
+            if coords:
+                for c in coords:
+                    self._xmask[c[0], c[1]] = -1
+                    self._zmask[c[0], c[1]] = -1
+
+        remove_singles(self._xmask)
+        remove_singles(self._zmask)
 
     def _find_domains(self):
         """ Find computation domains. """
@@ -206,36 +219,26 @@ class Domain:
         self._fill()
         self._update_patches()
 
-    def _check_domains(self):
+    def _check_subdomains(self):
         """ Make some tests to check if all subdomains are well defined. """
-        self._is_domain_complete()
-        self._fill_bc()
-        self._is_bc_complete()
-
-    def _is_domain_complete(self):
-        """ Check if the whole computation domain is subdivided. """
-        if self.missings[0].size or self.missings[1].size:
+        if not self.is_domain_complete:
             warnings.warn("Uncomplete computation domain. See domains.show_missings() method.")
-            return False
-        return True
-
-    def _is_bc_complete(self):
-        """ Check if all boundary conditions are specified. """
-        lst = [c for i in range(2) for c in self.listing[i] if c.bc.count('.') > 2]
-        if lst:
-            warnings.warn("Undefined boundary for {}. Check subdomains.".format(lst[0].no))
-            return False
-        return True
+        if not self.is_bc_complete:
+            self._fill_bc()
 
     def _fill_bc(self):
         """ Fill missing boundary conditions. """
-        whole_domain = Subdomain([0, 0, self._nx-1, self._nz-1], bc=self._bc, no=0)
-        fdomain = self._obstacles + [whole_domain]
+        fdomain = self._obstacles + [self.whole_domain]
 
         for i in range(2):
-            for sub1, sub2 in itertools.permutations(self.listing[i] + fdomain, r=2):
+            listing = [s for s in self.listing[i] if not s.patch]
+            for sub1, sub2 in itertools.permutations(listing + fdomain, r=2):
                 if sub1.axis or sub2.axis:
                     _ = sub1@sub2
+
+        if not self.is_bc_complete:
+            msg = "Undefined boundary for {}. Check subdomains."
+            warnings.warn(msg.format(self.missing_bc[0].no))
 
     def _top(self, obs):
         s = self._zmask[obs.sx, obs.iz[1]+1]
@@ -385,34 +388,60 @@ class Domain:
 
     def _fill(self):
         """ Search remaining domains along both x and z axises. """
-        xmissings = get_rectangles(self._xmask)
-        zmissings = get_rectangles(self._zmask)
+        xmissings = find_areas(self._xmask, val=0)
+        zmissings = find_areas(self._zmask, val=0)
         for c in xmissings:
-            self._update_domains(Subdomain(c, no=self.nd, axis='x'))
+
+            bc = ['C', '.', 'C', '.']
+            if c[0] == 0:
+                bc[0] = self._bc[0]
+            if c[2] == self._nx - 1:
+                bc[2] = self._bc[2]
+
+            self._update_domains(Subdomain(c, no=self.nd, bc=''.join(bc), axis='x'))
 
         for c in zmissings:
-            self._update_domains(Subdomain(c, no=self.nd, axis='z'))
+
+            bc = ['.', 'C', '.', 'C']
+            if c[1] == 0:
+                bc[1] = self._bc[1]
+            if c[3] == self._nz - 1:
+                bc[3] == self._bc[3]
+
+            self._update_domains(Subdomain(c, no=self.nd, bc=''.join(bc), axis='z'))
 
     def _update_patches(self, val=1):
-        """ Add patches. """
+        """ Add patches. TODO : Fix 'else R' if an obstacle has another bc !"""
 
-        xmiss, zmiss = self.missings
+        for patch in find_areas(self._xmask, val=-2):
+            bc = ['.', '.', '.', '.']
+            if patch[0] == 0:
+                bc[0] = self._bc[0]
+            else:
+                bc[0] = 'C' if self._xmask[patch[0]-1, patch[1]] == 1 else 'R'
 
-        idx = list(set(xmiss[:, 1]))
-        idz = list(set(zmiss[:, 0]))
+            if patch[2] == self._nx - 1:
+                bc[2] = self._bc[2]
+            else:
+                bc[2] = 'C' if self._xmask[patch[2]+1, patch[1]] == 1 else 'R'
 
-        lx = np.array([[xmiss[i, 0] for i in range(len(xmiss[:, 0])) if xmiss[i, 1] == ix] for ix in idx])
-        lz = np.array([[zmiss[i, 1] for i in range(len(zmiss[:, 0])) if zmiss[i, 0] == iz] for iz in idz])
+            self._update_domains(Subdomain(patch, axis='x', no=self.nd,
+                                           bc=''.join(bc), patch=True))
 
-#        print(lx, lz)
-#
-#        for c in range(len(idx)):
-#            self._patches.append(Patch([lx[c].min(), idx[c], lx[c].max(), idx[c]], axis='x'))
-#            self._xmask[self._patches[-1].sx, self._patches[-1].sz] = val
-#
-#        for c in range(len(idz)):
-#            self._patches.append(Patch([idz[c], lz[c].min(), idz[c], lz[c].max()], axis='z'))
-#            self._zmask[self._patches[-1].sx, self._patches[-1].sz] = val
+        for patch in find_areas(self._zmask, val=-2):
+            bc = ['.', '.', '.', '.']
+            if patch[1] == 0:
+                bc[1] = self._bc[1]
+            else:
+                bc[1] = 'C' if self._xmask[patch[0], patch[1]-1] == 1 else 'R'
+
+            if patch[3] == self._nz - 1:
+                bc[3] = self._bc[3]
+            else:
+                bc[3] = 'C' if self._xmask[patch[0], patch[3]+1] == 1 else 'R'
+
+            self._update_domains(Subdomain(patch, axis='z', no=self.nd,
+                                           bc=''.join(bc), patch=True))
 
     def _update_domains(self, sub, val=1):
         """ Update mask and list of subdomains. """
@@ -426,29 +455,38 @@ class Domain:
             self._zdomains.append(sub)
 
     @property
+    def is_domain_complete(self):
+        """ Check if the whole computation domain is subdivided. """
+        if self.missing_domains[0].size or self.missing_domains[1].size:
+            return False
+        else:
+            return True
+
+    @property
+    def is_bc_complete(self):
+        """ Check if all boundary conditions are specified. """
+        if self.missing_bc:
+            return False
+        else:
+            return True
+
+    @property
     def nd(self):
         """ Index of each subdomain. """
         self._nd += 1
         return self._nd
 
-    def show_missings(self):
-        """ Plot missing subdomains. """
-        fig, ax = plt.subplots(1, 2, figsize=(9, 3))
-        ax[0].plot(self.missings[0][:, 0], self.missings[0][:, 1], 'ro')
-        ax[0].imshow(self._xmask.T)
-        ax[0].axis([-10, self._nx+10, -10, self._nz+10])
-        ax[1].plot(self.missings[1][:, 0], self.missings[1][:, 1], 'ro')
-        ax[1].imshow(self._zmask.T)
-        ax[1].axis([-10, self._nx+10, -10, self._nz+10])
-        fig.suptitle(r'Missing points')
-        plt.show()
-
     @property
-    def missings(self):
+    def missing_domains(self):
         """ List missings. Returns a tuple of ndarray ([array along x], [array along z]]). """
         x = np.argwhere(np.logical_or(self._xmask == 0, self._xmask == -2))
         z = np.argwhere(np.logical_or(self._zmask == 0, self._zmask == -2))
         return x, z
+
+    @property
+    def missing_bc(self):
+        """ Returns list of subdomain for which at least one bc is missing. """
+        return [c for i in range(2) for c in self.listing[i] if c.bc.count('.') > 2]
 
     @property
     def listing(self):
@@ -466,6 +504,18 @@ class Domain:
 
     def __str__(self):
         return self.__repr__()
+
+    def show_missings(self):
+        """ Plot missing subdomains. """
+        fig, ax = plt.subplots(1, 2, figsize=(9, 3))
+        ax[0].plot(self.missing_domains[0][:, 0], self.missing_domains[0][:, 1], 'ro')
+        ax[0].imshow(self._xmask.T)
+        ax[0].axis([-10, self._nx+10, -10, self._nz+10])
+        ax[1].plot(self.missing_domains[1][:, 0], self.missing_domains[1][:, 1], 'ro')
+        ax[1].imshow(self._zmask.T)
+        ax[1].axis([-10, self._nx+10, -10, self._nz+10])
+        fig.suptitle(r'Missing points')
+        plt.show()
 
     @staticmethod
     def bounds(N, obstacles, axis='x'):
