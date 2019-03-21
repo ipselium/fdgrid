@@ -37,7 +37,7 @@ class TemplateConstructionError(Exception):
     pass
 
 
-def random(nx, nz):
+def testcase1(nx, nz):
     """ Random arrangement of obstacles. """
     return [Subdomain([0, 0, 60, 40], 'RRRR'),
             Subdomain([23, 40, 33, 50], 'RRRR'),
@@ -129,3 +129,20 @@ def square(nx, nz, size_percent=20):
 
     return [Subdomain([int(nx/2)-size, int(nz/2)-size,
                        int(nx/2)+size, int(nz/2)+size], 'RRRR')]
+
+
+def street(nx, nz, street_size=50):
+    """ Street with building facades. """
+
+    return [Subdomain([0, 0, int(0.7*nx), int(nz*0.25)], 'RRRR'),
+            Subdomain([int(0.8*nx), 0, nx-1, int(nz*0.25)], 'RRRR'),
+            Subdomain([0, int(nz*0.75), nx-1, nz-1], 'RRRR'),
+            Subdomain([int(0.05*nx), int(nz*0.7), int(0.15*nx), int(0.75*nz)], 'RRRR'),
+            Subdomain([int(0.35*nx), int(nz*0.69), int(0.50*nx), int(0.75*nz)], 'RRRR'),
+            Subdomain([int(0.60*nx), int(nz*0.72), int(0.70*nx), int(0.75*nz)], 'RRRR'),
+            Subdomain([int(0.80*nx), int(nz*0.73), int(0.95*nx), int(0.75*nz)], 'RRRR'),
+            Subdomain([int(0.80*nx), int(nz*0.25), int(0.95*nx), int(0.30*nz)], 'RRRR'),
+            Subdomain([int(0.10*nx), int(nz*0.25), int(0.15*nx), int(0.30*nz)], 'RRRR'),
+            Subdomain([int(0.30*nx), int(nz*0.25), int(0.38*nx), int(0.28*nz)], 'RRRR'),
+            Subdomain([int(0.55*nx), int(nz*0.25), int(0.70*nx), int(0.28*nz)], 'RRRR')]
+

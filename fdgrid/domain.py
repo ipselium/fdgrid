@@ -230,11 +230,11 @@ class Domain:
         """ Fill missing boundary conditions. """
         fdomain = self._obstacles + [self.whole_domain]
 
-        for i in range(2):
-            listing = [s for s in self.listing[i] if not s.patch]
-            for sub1, sub2 in itertools.permutations(listing + fdomain, r=2):
-                if sub1.axis or sub2.axis:
-                    _ = sub1@sub2
+#        for i in range(2):
+#            listing = [s for s in self.listing[i] if not s.patch]
+#            for sub1, sub2 in itertools.permutations(listing + fdomain, r=2):
+#                if sub1.axis or sub2.axis:
+#                    _ = sub1@sub2
 
         if not self.is_bc_complete:
             msg = "Undefined boundary for {}. Check subdomains."
@@ -286,8 +286,9 @@ class Domain:
                 elif np.any(mk == -2):
                     zc2 = int((zc1+zc2)/2 - 1)
                     bc = '.{}.X'.format(obs.bc[3])
-                else:
+                elif np.any(mk == 1):
                     zc2 -= 1
+                    bc = '.{}.X'.format(obs.bc[3])
                 break
 
         if abs(zc2 - zc1) < self._stencil:
@@ -309,8 +310,9 @@ class Domain:
                 elif np.any(mk == -2):
                     zc2 = int((zc1+zc2)/2 + 1)
                     bc = '.X.{}'.format(obs.bc[1])
-                else:
-                    zc2 +=1
+                elif np.any(mk == 1):
+                    zc2 += 1
+                    bc = '.X.{}'.format(obs.bc[1])
                 break
 
         if abs(zc2 - zc1) < self._stencil:
@@ -331,8 +333,9 @@ class Domain:
                 elif np.any(mk == -2):
                     xc2 = int((xc1+xc2)/2 - 1)
                     bc = '{}.X.'.format(obs.bc[2])
-                else:
+                elif np.any(mk == 1):
                     xc2 -= 1
+                    bc = '{}.X.'.format(obs.bc[1])
                 break
 
         if abs(xc2 - xc1) < self._stencil:
@@ -355,8 +358,9 @@ class Domain:
                 elif np.any(mk == -2):
                     xc2 = int((xc1+xc2)/2 + 1)
                     bc = 'X.{}.'.format(obs.bc[0])
-                else:
+                elif np.any(mk == 1):
                     xc2 += 1
+                    bc = 'X.{}.'.format(obs.bc[1])
                 break
 
         if abs(xc2 - xc1) < self._stencil:
