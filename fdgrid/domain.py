@@ -63,7 +63,7 @@ class Subdomain:
     bc: str = '....'
     no: str = ''
     axis: str = ''
-    patch: bool = False
+    patch: str = ''
 
     def __post_init__(self):
 
@@ -426,7 +426,7 @@ class Domain:
                 bc[2] = 'X' if self._xmask[patch[2]+1, patch[1]] == 1 else 'R'
 
             self._update_domains(Subdomain(patch, axis='x', no=self.nd,
-                                           bc=''.join(bc), patch=True))
+                                           bc=''.join(bc), patch='p'))
 
         for patch in find_areas(self._zmask, val=-2):
             bc = ['.', '.', '.', '.']
@@ -441,7 +441,7 @@ class Domain:
                 bc[3] = 'X' if self._xmask[patch[0], patch[3]+1] == 1 else 'R'
 
             self._update_domains(Subdomain(patch, axis='z', no=self.nd,
-                                           bc=''.join(bc), patch=True))
+                                           bc=''.join(bc), patch='p'))
 
     def _update_domains(self, sub, val=1):
         """ Update mask and list of subdomains. """
