@@ -371,7 +371,7 @@ class Domain:
         self._update_domains(Subdomain([xc2, zc1, xc1, zc2], bc, self.nd, axis=0))
 
     def _xbetween(self):
-        """ Find domains between obstacles along z axis. """
+        """ Find domains between obstacles along x axis. """
 
         idz = Domain.bounds(self._shape, self._bc, self._obstacles, axis=1)
         if idz:

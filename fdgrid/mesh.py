@@ -231,29 +231,29 @@ class Mesh:
             ax_c.plot(x.repeat(self.nz), self.z, 'k', linewidth=0.5)
 
 
-#        ax_c.set_xlim(self.x.min(), self.x.max())
-#        ax_c.set_ylim(self.z.min(), self.z.max())
+        ax_c.set_xlim(self.x.min(), self.x.max())
+        ax_c.set_ylim(self.z.min(), self.z.max())
         ax_c.set_xlabel(r'$x$ [m]')
         ax_c.set_ylabel(r'$z$ [m]')
         ax_c.set_aspect('equal')
 
         ax_xa.plot(self.x[:-1], np.diff(self.x)/self.dx, 'ko')
-#        ax_xa.set_xlim(ax_c.get_xlim())
-#        ax_xa.set_ylim((np.diff(self.x)/self.dx).min()/1.5, (np.diff(self.x)/self.dx).max()*1.5)
+        ax_xa.set_xlim(ax_c.get_xlim())
+        ax_xa.set_ylim((np.diff(self.x)/self.dx).min()/1.5, (np.diff(self.x)/self.dx).max()*1.5)
         ax_xa.xaxis.set_major_formatter(nullfmt)  # no label
         ax_xa.set_ylabel(r"$x'/dx$")
         ax_xb.plot(self.x, range(len(self.x)), 'k', linewidth=2)
-#        ax_xb.set_xlim(ax_c.get_xlim())
+        ax_xb.set_xlim(ax_c.get_xlim())
         ax_xb.xaxis.set_major_formatter(nullfmt)  # no label
         ax_xb.set_ylabel(r"$N_x$")
 
         ax_za.plot(np.diff(self.z)/self.dz, self.z[:-1], 'ko')
-#        ax_za.set_ylim(ax_c.get_ylim())
-#        ax_za.set_xlim((np.diff(self.z)/self.dz).min()/1.5, (np.diff(self.z)/self.dz).max()*1.5)
+        ax_za.set_ylim(ax_c.get_ylim())
+        ax_za.set_xlim((np.diff(self.z)/self.dz).min()/1.5, (np.diff(self.z)/self.dz).max()*1.5)
         ax_za.yaxis.set_major_formatter(nullfmt)  # no label
         ax_za.set_xlabel(r"$z'/dz$")
         ax_zb.plot(range(len(self.z)), self.z, 'k', linewidth=2)
-#        ax_zb.set_ylim(ax_c.get_ylim())
+        ax_zb.set_ylim(ax_c.get_ylim())
         ax_zb.yaxis.set_major_formatter(nullfmt)  # no label
         ax_zb.set_xlabel(r"$N_z$")
 
