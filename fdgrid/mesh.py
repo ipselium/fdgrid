@@ -93,7 +93,8 @@ class Mesh:
     def _limits(self):
         xlim = Domain.bounds(self.nx, self.obstacles, 'x')
         zlim = Domain.bounds(self.nz, self.obstacles, 'z')
-        return Domain.split_bounds(xlim, self.nx), Domain.split_bounds(zlim, self.nz)
+        return xlim, zlim
+        #return Domain.split_bounds(xlim, self.nx), Domain.split_bounds(zlim, self.nz)
 
     def _find_subdomains(self):
         """ Divide the computation domain in subdomains. """
