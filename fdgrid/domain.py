@@ -45,11 +45,6 @@ from .utils import remove_dups, remove_singles
 from .utils import split_discontinuous, find_areas
 
 
-class BoundsNotFoundError(Exception):
-    """ Error due to bounds not found. """
-    pass
-
-
 class CloseObstaclesError(Exception):
     """ Error due to obstacles too close. """
 
@@ -62,7 +57,7 @@ class Subdomain:
     xz: list
     bc: str = '....'
     no: str = ''
-    axis: str = ''
+    axis: int = -1
     patch: str = ''
 
     def __post_init__(self):
@@ -111,9 +106,9 @@ class Subdomain:
 
         edges = []
 
-        if self.axis == 'x' or other.axis == 'x':
+        if self.axis == 0 or other.axis == 0:
             indexes = [(0, 2, 1, 3)]
-        elif self.axis == 'z' or other.axis == 'z':
+        elif self.axis == 1 or other.axis == 1:
             indexes = [(1, 3, 0, 2)]
         else:
             indexes = [(0, 2, 1, 3), (1, 3, 0, 2)]
@@ -155,21 +150,17 @@ class Domain:
     def __init__(self, shape, obstacles, bc, stencil):
 
         self._stencil = stencil
+        self._shape = shape
         self._nx, self._nz = shape
         self._obstacles = obstacles
         self._bc = bc
-        self._xmask = np.zeros(shape, dtype=int)
-        self._zmask = self._xmask.copy()
         self._xdomains = []
         self._zdomains = []
         self._patches = []
         self._nd = 0                             # Index of the subdomains
 
-        # The whole domain
-        self.whole_domain = Subdomain([0, 0, self._nx-1, self._nz-1], bc=self._bc, no=0)
-
-        # Fill mask with obstacles
-        self._init_masks()
+        # Initialize masks
+        self._xmask, self._zmask = self.init_masks(shape, bc, obstacles)
 
         # Search computation domains
         self._find_domains()
@@ -177,30 +168,37 @@ class Domain:
         # Check if domain is completely processed
         self._check_subdomains()
 
-    def _init_masks(self):
+    @staticmethod
+    def init_masks(shape, bc, obstacles):
         """ Init masks with obstacles. """
 
-        for obs in self._obstacles:
-            for mask in [self._xmask, self._zmask]:
+        whole_domain = Subdomain([0, 0, shape[0]-1, shape[1]-1], bc=bc, no=0)
+        xmask = np.zeros(shape, dtype=int)
+        zmask = xmask.copy()
+
+        for obs in obstacles:
+            for mask in [xmask, zmask]:
                 mask[obs.sx, obs.sz] = -1
                 mask[obs.sx, obs.iz] = -2
                 mask[obs.ix, obs.sz] = -2
 
-        for obs1, obs2 in itertools.permutations(self._obstacles, r=2):
+        for obs1, obs2 in itertools.permutations(obstacles, r=2):
             c = obs1.intersection(obs2)
             if c:
-                self._xmask[c[0], c[1]] = -1
-                self._zmask[c[0], c[1]] = -1
+                xmask[c[0], c[1]] = -1
+                zmask[c[0], c[1]] = -1
 
-        for obs in self._obstacles:
-            coords = obs.touch(self.whole_domain)
+        for obs in obstacles:
+            coords = obs.touch(whole_domain)
             if coords:
                 for c in coords:
-                    self._xmask[c[0], c[1]] = -1
-                    self._zmask[c[0], c[1]] = -1
+                    xmask[c[0], c[1]] = -1
+                    zmask[c[0], c[1]] = -1
 
-        remove_singles(self._xmask)
-        remove_singles(self._zmask)
+        remove_singles(xmask)
+        remove_singles(zmask)
+
+        return xmask, zmask
 
     def _find_domains(self):
         """ Find computation domains. """
@@ -228,7 +226,11 @@ class Domain:
 
     def _fill_bc(self):
         """ Fill missing boundary conditions. """
-        fdomain = self._obstacles + [self.whole_domain]
+
+        # The whole domain
+        whole_domain = Subdomain([0, 0, self._nx-1, self._nz-1], bc=self._bc, no=0)
+
+        fdomain = self._obstacles + [whole_domain]
 
 #        for i in range(2):
 #            listing = [s for s in self.listing[i] if not s.patch]
@@ -294,7 +296,7 @@ class Domain:
         if abs(zc2 - zc1) < self._stencil:
             raise CloseObstaclesError(CloseObstaclesError.msg.format(obs, self._stencil))
 
-        self._update_domains(Subdomain([xc1, zc1, xc2, zc2], bc, self.nd, 'z'))
+        self._update_domains(Subdomain([xc1, zc1, xc2, zc2], bc, self.nd, axis=1))
 
     def _extrude_bottom(self, obs, idx):
         """ Extrude bottom wall of the obstacle. """
@@ -318,7 +320,7 @@ class Domain:
         if abs(zc2 - zc1) < self._stencil:
             raise CloseObstaclesError(CloseObstaclesError.msg.format(obs, self._stencil))
 
-        self._update_domains(Subdomain([xc1, zc2, xc2, zc1], bc, self.nd, 'z'))
+        self._update_domains(Subdomain([xc1, zc2, xc2, zc1], bc, self.nd, axis=1))
 
     def _extrude_right(self, obs, idz):
         xc1, zc1 = obs.xz[2], idz[0]
@@ -342,7 +344,7 @@ class Domain:
             print(obs, abs(xc2-xc1))
             raise CloseObstaclesError(CloseObstaclesError.msg.format(obs, self._stencil))
 
-        self._update_domains(Subdomain([xc1, zc1, xc2, zc2], bc, self.nd, 'x'))
+        self._update_domains(Subdomain([xc1, zc1, xc2, zc2], bc, self.nd, axis=0))
 
     def _extrude_left(self, obs, idz):
         """ Extrude left wall of the obstacle. """
@@ -366,29 +368,31 @@ class Domain:
         if abs(xc2 - xc1) < self._stencil:
             raise CloseObstaclesError(CloseObstaclesError.msg.format(obs, self._stencil))
 
-        self._update_domains(Subdomain([xc2, zc1, xc1, zc2], bc, self.nd, 'x'))
+        self._update_domains(Subdomain([xc2, zc1, xc1, zc2], bc, self.nd, axis=0))
 
     def _xbetween(self):
         """ Find domains between obstacles along z axis. """
 
-        idz = Domain.bounds(self._nz, self._obstacles, axis='z')
+        idz = Domain.bounds(self._shape, self._bc, self._obstacles, axis=1)
         if idz:
             void = [[0, i[0], self._nx-1, i[1]] for i in idz if i[2] == 'v']
             void = remove_dups(void)
             for sub in void:
-                self._update_domains(Subdomain(sub, '{}.{}.'.format(self._bc[0], self._bc[2]),
-                                               self.nd, 'x'))
+                self._update_domains(Subdomain(sub,
+                                               '{}.{}.'.format(self._bc[0], self._bc[2]),
+                                               self.nd, axis=0))
 
     def _zbetween(self):
         """ Find domains between obstacles along z axis. """
 
-        idx = Domain.bounds(self._nx, self._obstacles, axis='x')
+        idx = Domain.bounds(self._shape, self._bc, self._obstacles, axis=0)
         if idx:
             void = [[i[0], 0, i[1], self._nz-1] for i in idx if i[2] == 'v']
             void = remove_dups(void)
             for sub in void:
-                self._update_domains(Subdomain(sub, '.{}.{}'.format(self._bc[1], self._bc[3]),
-                                               self.nd, 'z'))
+                self._update_domains(Subdomain(sub,
+                                               '.{}.{}'.format(self._bc[1], self._bc[3]),
+                                               self.nd, axis=1))
 
     def _fill(self):
         """ Search remaining domains along both x and z axises. """
@@ -402,7 +406,7 @@ class Domain:
             if c[2] == self._nx - 1:
                 bc[2] = self._bc[2]
 
-            self._update_domains(Subdomain(c, no=self.nd, bc=''.join(bc), axis='x'))
+            self._update_domains(Subdomain(c, no=self.nd, bc=''.join(bc), axis=0))
 
         for c in zmissings:
 
@@ -412,7 +416,7 @@ class Domain:
             if c[3] == self._nz - 1:
                 bc[3] == self._bc[3]
 
-            self._update_domains(Subdomain(c, no=self.nd, bc=''.join(bc), axis='z'))
+            self._update_domains(Subdomain(c, no=self.nd, bc=''.join(bc), axis=1))
 
     def _update_patches(self, val=1):
         """ Add patches. TODO : Fix 'else R' if an obstacle has another bc !"""
@@ -429,7 +433,7 @@ class Domain:
             else:
                 bc[2] = 'X' if self._xmask[patch[2]+1, patch[1]] == 1 else 'R'
 
-            self._update_domains(Subdomain(patch, axis='x', no=self.nd,
+            self._update_domains(Subdomain(patch, axis=0, no=self.nd,
                                            bc=''.join(bc), patch='p'))
 
         for patch in find_areas(self._zmask, val=-2):
@@ -444,17 +448,17 @@ class Domain:
             else:
                 bc[3] = 'X' if self._xmask[patch[0], patch[3]+1] == 1 else 'R'
 
-            self._update_domains(Subdomain(patch, axis='z', no=self.nd,
+            self._update_domains(Subdomain(patch, axis=1, no=self.nd,
                                            bc=''.join(bc), patch='p'))
 
     def _update_domains(self, sub, val=1):
         """ Update mask and list of subdomains. """
 
-        if sub.axis == 'x':
+        if sub.axis == 0:
             self._xmask[sub.sx, sub.sz] = val
             self._xdomains.append(sub)
 
-        elif sub.axis == 'z':
+        elif sub.axis == 1:
             self._zmask[sub.sx, sub.sz] = val
             self._zdomains.append(sub)
 
@@ -482,7 +486,10 @@ class Domain:
 
     @property
     def missing_domains(self):
-        """ List missings. Returns a tuple of ndarray ([array along x], [array along z]]). """
+        """
+        List missings.
+        Returns a tuple of ndarray ([array along x], [array along z]]).
+        """
         x = np.argwhere(np.logical_or(self._xmask == 0, self._xmask == -2))
         z = np.argwhere(np.logical_or(self._zmask == 0, self._zmask == -2))
         return x, z
@@ -522,83 +529,38 @@ class Domain:
         plt.show()
 
     @staticmethod
-    def bounds(N, obstacles, axis='x'):
-        """ Returns a list of tuples representating the bounds of each subdomain.
+    def bounds(shape, bc, obstacles, axis=0):
+        """ Returns a list of tuples representating the bounds of the domain.
         As an example :
 
-        [(0, 10, 'v'), (10, 100, 'o'), (90, 127, 'o')]
+        [(0, 10, 'v'), (11, 100, 'o'), (101, 127, 'v')]
 
         Third element of each tuple represents the type of subdomain (v:void, o:obstacle)
 
         """
 
-        if axis == 'x':
-            i1, i2 = 0, 2
-        elif axis == 'z':
-            i1, i2 = 1, 3
 
-        obs_bounds = [(o.xz[i1], o.xz[i2], 'o') for o in obstacles]
-        obs_sets = [set(range(o[0], o[1])) for o in obs_bounds]
+        bounds = []
+        mask = Domain.init_masks(shape, bc, obstacles)[axis] < 0
 
-        void_bounds = []
-        void_sets = list(set(range(N)).difference(*obs_sets))
-        void_sets.sort()
+        for i in range(mask.shape[axis]):
+            if axis == 0:
+                if mask[i, :].any() == True:
+                    mask[i, :] = True
+            elif axis == 1:
+                if mask[:, i].any() == True:
+                    mask[:, i] = True
 
-        if void_sets:
-            void_bounds = [(void_sets[i], void_sets[i+1])
-                           for i in list(*np.where(np.diff(void_sets) != 1))]
-            void_bounds = [min(void_sets), *[i for sub in void_bounds for i in sub], max(void_sets)]
-            void_bounds = [(void_bounds[i]+1, void_bounds[i+1], 'v') if void_bounds[i] !=0
-                            else (void_bounds[i], void_bounds[i+1], 'v')
-                           for i in range(0, len(void_bounds)-1, 2)
-                           if void_bounds[i] != void_bounds[i+1]]
+        for c in find_areas(mask, val=0):
+            bounds.append((c[axis], c[axis+2], 'v'))
 
+        for c in find_areas(mask, val=1):
+            bounds.append((c[axis], c[axis+2], 'o'))
 
-        out = obs_bounds + void_bounds
-        out.sort()
+        bounds.sort()
 
-        return out
+        return bounds
 
-    @staticmethod
-    def split_bounds(lst, N):
-        """ Split bounds in order to get sets that don't have common ranges.
-        As an example :
-
-        lst = [(0, 10, 'v'), (10, 180, 'o'), (90, 120), 'o']
-        out = [(0, 10, 'v'), (10, 90, 'o'), (90, 120, 'o'), (120, 180, 'o')]
-        """
-
-        out = lst[:]
-
-        maxit = 0
-        while not all([out[i][1] == out[i+1][0] for i in range(len(out)-1)]):
-
-            bound_sets = [set(range(s[0], s[1])) for s in out]
-
-            for i, j in itertools.combinations(range(len(bound_sets)), 2):
-                if bound_sets[i].intersection(bound_sets[j]):
-                    if out[j][1] <= out[i][1]:
-                        out.append((out[j][1], out[i][1], out[i][2]))
-                        out[i] = (out[i][0], out[j][0], out[i][2])
-                    elif out[j][1] > out[i][1]:
-                        out[j] = (out[i][1], out[j][1], out[i][2])
-                    out.sort()
-                    break
-
-            if maxit > len(lst)**2:
-                raise BoundsNotFoundError("Bound algorithm dit not converge")
-
-            maxit += 1
-
-        if out[0][0] != 0:
-            out.append((0, out[0][0], 'v'))
-
-        if out[-1][1] != N-1:
-            out.append((out[-1][1], N-1, 'v'))
-
-        out.sort()
-
-        return [i for i in out if i[0] != i[1]]
 
 
 if __name__ == "__main__":

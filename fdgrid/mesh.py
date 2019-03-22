@@ -44,7 +44,7 @@ class BoundaryConditionError(Exception):
 
 
 class GridError(Exception):
-    """ Error due to incompatible boundary conditions """
+    """ Error due wrong grid parameters. """
     pass
 
 
@@ -90,11 +90,18 @@ class Mesh:
         self.x = (np.arange(self.nx)-self.ix0)*self.dx
         self.z = (np.arange(self.nz)-self.iz0)*self.dz
 
+    def N(self, axis):
+        """ Return number of point following 'axis'. """
+        return self.nx if axis == 0 else self.nz if axis == 1 else None
+
+    def du(self, axis):
+        """ Return base spacial step following 'axis'. """
+        return self.dx if axis == 0 else self.dz if axis == 1 else None
+
     def _limits(self):
-        xlim = Domain.bounds(self.nx, self.obstacles, 'x')
-        zlim = Domain.bounds(self.nz, self.obstacles, 'z')
+        xlim = Domain.bounds(self.shape, self.bc, self.obstacles, axis=0)
+        zlim = Domain.bounds(self.shape, self.bc, self.obstacles, axis=1)
         return xlim, zlim
-        #return Domain.split_bounds(xlim, self.nx), Domain.split_bounds(zlim, self.nz)
 
     def _find_subdomains(self):
         """ Divide the computation domain in subdomains. """
@@ -224,29 +231,29 @@ class Mesh:
             ax_c.plot(x.repeat(self.nz), self.z, 'k', linewidth=0.5)
 
 
-        ax_c.set_xlim(self.x.min(), self.x.max())
-        ax_c.set_ylim(self.z.min(), self.z.max())
+#        ax_c.set_xlim(self.x.min(), self.x.max())
+#        ax_c.set_ylim(self.z.min(), self.z.max())
         ax_c.set_xlabel(r'$x$ [m]')
         ax_c.set_ylabel(r'$z$ [m]')
         ax_c.set_aspect('equal')
 
         ax_xa.plot(self.x[:-1], np.diff(self.x)/self.dx, 'ko')
-        ax_xa.set_xlim(ax_c.get_xlim())
-        ax_xa.set_ylim((np.diff(self.x)/self.dx).min()/1.5, (np.diff(self.x)/self.dx).max()*1.5)
+#        ax_xa.set_xlim(ax_c.get_xlim())
+#        ax_xa.set_ylim((np.diff(self.x)/self.dx).min()/1.5, (np.diff(self.x)/self.dx).max()*1.5)
         ax_xa.xaxis.set_major_formatter(nullfmt)  # no label
         ax_xa.set_ylabel(r"$x'/dx$")
         ax_xb.plot(self.x, range(len(self.x)), 'k', linewidth=2)
-        ax_xb.set_xlim(ax_c.get_xlim())
+#        ax_xb.set_xlim(ax_c.get_xlim())
         ax_xb.xaxis.set_major_formatter(nullfmt)  # no label
         ax_xb.set_ylabel(r"$N_x$")
 
         ax_za.plot(np.diff(self.z)/self.dz, self.z[:-1], 'ko')
-        ax_za.set_ylim(ax_c.get_ylim())
-        ax_za.set_xlim((np.diff(self.z)/self.dz).min()/1.5, (np.diff(self.z)/self.dz).max()*1.5)
+#        ax_za.set_ylim(ax_c.get_ylim())
+#        ax_za.set_xlim((np.diff(self.z)/self.dz).min()/1.5, (np.diff(self.z)/self.dz).max()*1.5)
         ax_za.yaxis.set_major_formatter(nullfmt)  # no label
         ax_za.set_xlabel(r"$z'/dz$")
         ax_zb.plot(range(len(self.z)), self.z, 'k', linewidth=2)
-        ax_zb.set_ylim(ax_c.get_ylim())
+#        ax_zb.set_ylim(ax_c.get_ylim())
         ax_zb.yaxis.set_major_formatter(nullfmt)  # no label
         ax_zb.set_xlabel(r"$N_z$")
 
@@ -258,6 +265,36 @@ class Mesh:
             if j[-1] == 'o':
                 ax_za.axhspan(self.z[j[0]], self.z[j[1]], facecolor='k', alpha=0.5)
                 ax_zb.axhspan(self.z[j[0]], self.z[j[1]], facecolor='k', alpha=0.5)
+
+    def plot_xz(self):
+        """ Plot mesh """
+
+        _, axes = plt.subplots(2, 2, figsize=(9, 4))
+        axes[0, 0].plot(self.x, 'k*')
+        axes[0, 0].set_xlabel(r'$N_x$')
+        axes[0, 0].set_ylabel(r'$x$ [m]')
+
+        axes[1, 0].plot(np.diff(self.x)/self.dx, 'k*')
+        axes[1, 0].set_xlabel(r'$x$ [m]')
+        axes[1, 0].set_ylabel(r"$x'/dx$")
+
+        axes[0, 1].plot(self.z, 'k*')
+        axes[0, 1].set_xlabel(r'$N_z$')
+        axes[0, 1].set_ylabel(r'$z$ [m]')
+
+        axes[1, 1].plot(np.diff(self.z)/self.dz, 'k*')
+        axes[1, 1].set_xlabel(r'$z$ [m]')
+        axes[1, 1].set_ylabel(r"$z'/dz$")
+
+        for i in range(axes.shape[1]):
+            for ax in axes[:, i]:
+                ax.grid()
+                for j in self._limits()[i]:
+                    if j[-1] == 'o':
+                        ax.axvspan(j[0], j[1], facecolor='k', alpha=0.5)
+
+        plt.tight_layout()
+        plt.show()
 
     def get_obstacles(self):
         """ Get a list of the coordinates of all obstacles. """
@@ -301,32 +338,18 @@ class AdaptativeMesh(Mesh):
 
         xlim, zlim = self._limits()
 
-        self.x = self._make_axis(self.x, self.dx, xlim, axis='x')
-        self.z = self._make_axis(self.z, self.dz, zlim, axis='z')
+        self.x = self._make_axis(self.x, self.dx, xlim, axis=0)
+        self.z = self._make_axis(self.z, self.dz, zlim, axis=1)
 
         self.x -= self.x[self.ix0]
         self.z -= self.z[self.iz0]
 
-    def N(self, axis):
-        """ Return number of point following 'axis'. """
-        return self.nx if axis == 'x' else self.nz if axis == 'z' else None
-
-    def du(self, axis):
-        """ Return base spacial step following 'axis'. """
-        return self.dx if axis == 'x' else self.dz if axis == 'z' else None
-
-    def bc_at(self, side, axis):
+    def _bc_at(self, side, axis):
         """ Return bc following 'axis' at 'side' location. """
-        if axis == 'x':
-            if side == 'start':
-                bc = self.bc[0]
-            elif side == 'end':
-                bc = self.bc[2]
-        elif axis == 'z':
-            if side == 'start':
-                bc = self.bc[1]
-            elif side == 'end':
-                bc = self.bc[3]
+        if side == 'start':
+            bc = self.bc[axis]
+        elif side == 'end':
+            bc = self.bc[axis+2]
         return bc
 
     def _make_axis(self, u, du, ulim, axis):
@@ -334,11 +357,11 @@ class AdaptativeMesh(Mesh):
         for start, stop, _ in ulim:
 
             if start == 0:
-                u, du = self._make_axis_start(u, du, start, stop, axis)
+                u, du = self._make_axis_start(u, du, start, stop+1, axis)
             elif stop == self.N(axis) - 1:
-                u, du = self._make_axis_end(u, du, start, stop, axis)
+                u, du = self._make_axis_end(u, du, start, stop+1, axis)
             else:
-                u, du = self._make_in_axis(u, du, start, stop, axis)
+                u, du = self._make_in_axis(u, du, start, stop+1, axis)
 
         return u
 
@@ -349,7 +372,7 @@ class AdaptativeMesh(Mesh):
 
         for i in range(start, stop):
 
-            u[i+1] = u[i] + du
+            u[i] = u[i-1] + du
 
             if start + self.stencil < i < lim1 and du < self.du(axis):
                 du *= self._rr
@@ -360,7 +383,7 @@ class AdaptativeMesh(Mesh):
 
     def _make_axis_start(self, u, du, start, stop, axis):
 
-        du0, bc = self.du(axis), self.bc_at('start', axis)
+        du0, bc = self.du(axis), self._bc_at('start', axis)
 
         if bc == 'P':
             lim1 = 0
@@ -387,7 +410,7 @@ class AdaptativeMesh(Mesh):
 
     def _make_axis_end(self, u, du, start, stop, axis):
 
-        du0, bc = self.du(axis), self.bc_at('end', axis)
+        du0, bc = self.du(axis), self._bc_at('end', axis)
 
         lim1 = min(start + self.Nr + self.stencil, start + int((stop - start)/2))
 
@@ -399,7 +422,7 @@ class AdaptativeMesh(Mesh):
             lim2 = self.N(axis)
 
         for i in range(start, stop):
-            u[i+1] = u[i] + du
+            u[i] = u[i-1] + du
             if start + self.stencil <= i < lim1  and du < du0:
                 du *= self._rr
             elif lim2 <= i < stop - self.stencil and bc == 'A':
@@ -409,35 +432,6 @@ class AdaptativeMesh(Mesh):
 
         return u, du
 
-    def plot_xz(self):
-        """ Plot mesh """
-
-        _, axes = plt.subplots(2, 2, figsize=(9, 4))
-        axes[0, 0].plot(self.x, 'k*')
-        axes[0, 0].set_xlabel(r'$N_x$')
-        axes[0, 0].set_ylabel(r'$x$ [m]')
-
-        axes[1, 0].plot(np.diff(self.x)/self.dx, 'k*')
-        axes[1, 0].set_xlabel(r'$x$ [m]')
-        axes[1, 0].set_ylabel(r"$x'/dx$")
-
-        axes[0, 1].plot(self.z, 'k*')
-        axes[0, 1].set_xlabel(r'$N_z$')
-        axes[0, 1].set_ylabel(r'$z$ [m]')
-
-        axes[1, 1].plot(np.diff(self.z)/self.dz, 'k*')
-        axes[1, 1].set_xlabel(r'$z$ [m]')
-        axes[1, 1].set_ylabel(r"$z'/dz$")
-
-        for i in range(axes.shape[1]):
-            for ax in axes[:, i]:
-                ax.grid()
-                for j in self._limits()[i]:
-                    if j[-1] == 'o':
-                        ax.axvspan(j[0], j[1], facecolor='k', alpha=0.5)
-
-        plt.tight_layout()
-        plt.show()
 
     def __str__(self):
         s = 'Adaptative cartesian {}x{} points grid with {} boundary conditions:\n\n'
@@ -453,7 +447,10 @@ class AdaptativeMesh(Mesh):
 
 class CurvilinearMesh(Mesh):
     """ Curvilinear Mesh """
-    pass
+
+    def __init__(self, shape, step, origin=(0, 0), bc='RRRR', obstacles=None, Npml=15, stencil=11):
+
+        raise NotImplementedError('Soon it will be !')
 
 
 if __name__ == "__main__":
