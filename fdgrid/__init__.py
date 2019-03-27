@@ -27,4 +27,4 @@ DOCSTRING
 @author: Cyril Desjouy
 """
 
-__version__ = "0.1.5-dev0"
+__version__ = "0.1.5"
