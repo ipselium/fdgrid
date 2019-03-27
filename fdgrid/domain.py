@@ -67,6 +67,10 @@ class Subdomain:
         self.sx = slice(self.xz[0], self.xz[2]+1)
         self.sz = slice(self.xz[1], self.xz[3]+1)
 
+    @property
+    def axname(self):
+        return "x" if self.axis == 0 else "z" if self.axis == 1 else None
+
     def intersection(self, other):
         """ Return common borders with another object. """
 
