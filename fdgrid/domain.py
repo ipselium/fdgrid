@@ -566,7 +566,6 @@ class Domain:
         return bounds
 
 
-
 if __name__ == "__main__":
 
     import templates

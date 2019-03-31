@@ -109,6 +109,7 @@ class Mesh:
         self.domain = Domain((self.nx, self.nz), self.obstacles, self.bc, self.stencil)
         self.xdomains, self.zdomains = self.domain.listing
         self.all_domains = self.xdomains + self.zdomains
+        self.sdomains = self.xdomains if len(self.xdomains) > len(self.zdomains) else self.zdomains
 
     def _check_bc(self):
 
