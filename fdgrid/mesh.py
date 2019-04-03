@@ -35,7 +35,7 @@ import matplotlib.patches as patches
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from matplotlib.ticker import NullFormatter
 from .utils import down_sample
-from .domain import Domain
+from .domain import CoDomain
 
 
 class BoundaryConditionError(Exception):
@@ -99,14 +99,14 @@ class Mesh:
         return self.dx if axis == 0 else self.dz if axis == 1 else None
 
     def _limits(self):
-        xlim = Domain.bounds(self.shape, self.bc, self.obstacles, axis=0)
-        zlim = Domain.bounds(self.shape, self.bc, self.obstacles, axis=1)
+        xlim = CoDomain.bounds(self.shape, self.bc, self.obstacles, axis=0)
+        zlim = CoDomain.bounds(self.shape, self.bc, self.obstacles, axis=1)
         return xlim, zlim
 
     def _find_subdomains(self):
         """ Divide the computation domain in subdomains. """
 
-        self.domain = Domain((self.nx, self.nz), self.obstacles, self.bc, self.stencil)
+        self.domain = CoDomain((self.nx, self.nz), self.obstacles, self.bc, self.stencil)
         self.xdomains, self.zdomains = self.domain.listing
         self.all_domains = self.xdomains + self.zdomains
         self.sdomains = self.xdomains if len(self.xdomains) > len(self.zdomains) else self.zdomains
@@ -130,12 +130,12 @@ class Mesh:
         if self.ix0 > self.nx or self.iz0 > self.nz:
             raise GridError("Origin of the domain must be in the domain")
 
-    def plot_domains(self, annotations=True, N=4):
+    def plot_domains(self, legend=True, N=4):
         """ Plot a scheme of the computation domain higlighting the subdomains.
 
             Parameters
             ----------
-            annotations: Show mesh annotations
+            legend: Show mesh legend
             N: Keep one point over N
         """
 
@@ -156,12 +156,19 @@ class Mesh:
             for x in down_sample(self.x, N):
                 ax.plot(x.repeat(self.nz), self.z, 'k', linewidth=0.5)
 
-            self._plot_areas(ax, self.obstacles, fcolor='k')
+            self._plot_areas(ax, self.obstacles, fcolor='k', ecolor='k')
 
-        self._plot_areas(axes[0], self.xdomains, fcolor='y', annotations=annotations)
-        self._plot_areas(axes[1], self.zdomains, fcolor='y', annotations=annotations)
+        self._plot_areas(axes[0], [s for s in self.xdomains if s.kind=='d'],
+			 fcolor='y', ecolor='b', legend=legend)
+        self._plot_areas(axes[1], [s for s in self.zdomains if s.kind=='d'],
+			 fcolor='y', ecolor='b', legend=legend)
 
-        if annotations:
+        self._plot_areas(axes[0], [s for s in self.xdomains if s.kind=='p'],
+			 fcolor='y', ecolor='r', legend=legend)
+        self._plot_areas(axes[1], [s for s in self.zdomains if s.kind=='p'],
+			 fcolor='y', ecolor='r', legend=legend)
+
+        if legend:
 
             xloc = np.array([self.x[0] - self.dx*offset/2,
                              (self.x[-1] - np.abs(self.x[0]))/2 + self.dx,
@@ -182,17 +189,20 @@ class Mesh:
         plt.tight_layout()
         plt.show()
 
-    def _plot_areas(self, ax, area, fcolor='k', annotations=True):
+    def _plot_areas(self, ax, area, fcolor='k', ecolor='k', legend=True):
 
         for a in area:
             rect = patches.Rectangle((self.x[a.ix[0]], self.z[a.iz[0]]),
                                      self.x[a.ix[1]]-self.x[a.ix[0]],
                                      self.z[a.iz[1]]-self.z[a.iz[0]],
-                                     linewidth=3, edgecolor='r', facecolor=fcolor, alpha=0.5)
+                                     linewidth=3, edgecolor=ecolor, facecolor=fcolor, alpha=0.5)
             ax.add_patch(rect)
 
-            if annotations:
-                ax.text(self.x[a.ix[0]+2], self.z[a.iz[0]+2], a.no, color='b')
+            if legend and a.kind is 'd':
+                ax.text(self.x[a.ix[0]+2], self.z[a.iz[0]+2], a.no, color=ecolor)
+            elif legend and a.kind is 'p':
+                ax.text(self.x[a.ix[1]]-5, self.z[a.iz[1]-5], a.no, color=ecolor)
+
 
     @staticmethod
     def plot_obstacles(x, z, ax, obstacles, facecolor='k', edgecolor='r'):
@@ -465,4 +475,4 @@ if __name__ == "__main__":
 
 
     mesh1 = Mesh(shape, steps, origin, obstacles=obstacle, bc='PAPZ')
-    mesh1.plot_domains(annotations=True, N=2)
+    mesh1.plot_domains(legend=True, N=2)

@@ -36,12 +36,16 @@ Submodule `domain` provides two classes:
 @author: Cyril Desjouy
 """
 
+
+import re
+import copy
+import string
 import warnings
 import itertools
 import numpy as np
 import matplotlib.pyplot as plt
 from dataclasses import dataclass
-from .utils import remove_dups, remove_singles
+from .utils import remove_dups, remove_singles, is_ordered
 from .utils import split_discontinuous, find_areas
 
 
@@ -51,19 +55,256 @@ class CloseObstaclesError(Exception):
     msg = "{} too close to another subdomain for a {} points stencil."
 
 
+class Domains:
+
+    def __init__(self, data=None):
+
+        self._data = dict({})
+        if isinstance(data, list):
+            for sub in data:
+                if not sub.no:
+                    sub.no = self._no
+                self._data[sub.no] = sub
+
+    def copy(self):
+        return copy.deepcopy(self)
+
+    def append(self, val, n=None):
+        """ Append 'val' to the Domains object. """
+
+        if isinstance(val, Subdomain):
+
+            if val.no in self._data.keys():
+                raise ValueError(f'Domain {val.no} already exists')
+
+            if n and not val.no:
+                val.no = str(n)
+            elif not val.no and not n:
+                val.no = self._no
+
+            self._data[val.no] = val
+
+        elif isinstance(val, tuple) or isinstance(val, list):
+            for sub in val:
+                if isinstance(sub, Subdomain):
+                    self.append(sub)
+        else:
+            raise ValueError('Not a Subdomain object')
+
+    def pop(self, n):
+        """ Remove value of index n from the Domains object. """
+
+        if n in self._data.keys():
+            self._data.pop(n)
+        else:
+            raise KeyError('Sudbomain not found')
+
+    def periodic_bc(self, mask, axis):
+        """ Arange subdomains to take into account periodic boundary condtions. """
+
+        if axis == 0:
+            self._xperiod(mask)
+
+        if axis == 1:
+            self._zperiod(mask)
+
+    def _xperiod(self, mask):
+
+        left = np.argwhere(mask[0,:] != 0).ravel()
+        right = np.argwhere(mask[-1,:] != 0).ravel()
+
+        left_rigid, right_rigid = self._periodic_bounds(left, right)
+
+        for sub in [s for s in self if s.ix[0] == 0]:
+            self._periodic_update(sub, left_rigid)
+
+        for sub in [s for s in self if s.ix[1] == mask.shape[0]-1]:
+            self._periodic_update(sub, right_rigid)
+
+    def _zperiod(self, mask):
+
+        bot = np.argwhere(mask[:,0] != 0).ravel()
+        top = np.argwhere(mask[:,-1] != 0).ravel()
+
+        bot_rigid, top_rigid = self._periodic_bounds(bot, top)
+
+        for sub in [s for s in self if s.iz[0] == 0]:
+            self._periodic_update(sub, bot_rigid)
+
+        for sub in [s for s in self if s.iz[1] == mask.shape[1]-1]:
+            self._periodic_update(sub, top_rigid)
+
+    @staticmethod
+    def _periodic_bounds(bot, top):
+
+        bot_rigid = list(set(top).difference(set(bot)))
+        top_rigid = list(set(bot).difference(set(top)))
+
+        if any(bot_rigid):
+            bot_rigid = split_discontinuous(bot_rigid)
+        else:
+            bot_rigid = []
+
+        if any(top_rigid):
+            top_rigid = split_discontinuous(top_rigid)
+        else:
+            top_rigid = []
+
+        return bot_rigid, top_rigid
+
+    def _periodic_update(self, sub, bounds):
+
+        if sub.axis == 0:
+            attr = 'rz'
+            axis = 1
+        elif sub.axis == 1:
+            attr = 'rx'
+            axis = 0
+
+        nbc = sub.bc.replace('P', 'R')
+
+        for bound in bounds:
+            if set(range(bound[0], bound[1]+1)).issuperset(set(getattr(sub, attr))):
+                #print(f'Process {sub.no} : update bc')
+                self[sub.no].bc = nbc
+
+            elif set(range(bound[0], bound[1]+1)).issubset(set(getattr(sub, attr))):
+                #print(f'Process {sub.no} : split subdomain')
+                self[sub.no] = sub.split(bound, nbc=nbc, axis=axis)
+
+    @property
+    def _no(self):
+        self._n = 1
+        while str(self._n) in self._data.keys():
+            self._n += 1
+        return str(self._n)
+
+    @property
+    def xz(self):
+        """ Return list of coordinates. """
+        if self._data:
+            return [s.xz for s in self._data]
+        else:
+            return
+
+    @property
+    def sx(self):
+        """ Return list of slices (over Subdomain x coordinates). """
+        if self._data:
+            return [s.sx for s in self._data]
+        else:
+            return
+
+    @property
+    def sz(self):
+        """ Return list of slices (over Subdomain z coordinates). """
+        if self._data:
+            return [s.sz for s in self._data]
+        else:
+            return
+
+    @property
+    def rx(self):
+        """ Return list of ranges (over Subdomain x coordinates). """
+        if self._data:
+            return [s.rx for s in self._data]
+        else:
+            return
+
+    @property
+    def rz(self):
+        """ Return list of ranges (over Subdomain z coordinates). """
+        if self._data:
+            return [s.rz for s in self._data]
+        else:
+            return
+
+    @property
+    def ix(self):
+        """ Return list of x coordinates. """
+        if self._data:
+            return [s.ix for s in self._data]
+        else:
+            return
+
+    @property
+    def iz(self):
+        """ Return list of z coordinates. """
+        if self._data:
+            return [s.iz for s in self._data]
+        else:
+            return
+
+    def __setitem__(self, n, val):
+
+        if isinstance(val, Subdomain) or isinstance(val, tuple) or isinstance(val, list):
+            self.pop(str(n))
+            self.append(val, n)
+        else:
+            raise ValueError('Must be or contain Subdomain objects')
+
+    def __getitem__(self, n):
+
+        if str(n) not in self._data.keys():
+            raise KeyError('Subdomain not found')
+
+        return self._data[str(n)]
+
+    def __iter__(self):
+        return iter(self._data.values())
+
+    def __add__(self, other):
+
+        if not isinstance(other, Domains):
+            raise TypeError('Can only concatenate Domains objects')
+
+        elif set(self._data.keys()).intersection(set(other._data.keys())):
+            raise ValueError('Duplicate subdomains')
+
+        else:
+            tmp = Domains()
+            for sub in self._data.values():
+                tmp.append(sub)
+            for sub in other._data.values():
+                tmp.append(sub)
+
+            return tmp
+
+    def __radd__(self, other):
+        return __add__(self, other)
+
+    def __len__(self):
+        return len(self._data)
+
+    def __str__(self):
+
+        s = ''
+
+        for sub in self._data.values():
+
+            s += '\t' + sub.__str__() + '\n'
+
+        return s
+
+    def __repr__(self):
+        return self.__str__()
+
+
 @dataclass
 class Subdomain:
     """ Subdomain of the computation domain. """
-    xz: list
+    xz: tuple
     bc: str = '....'
     no: str = ''
     axis: int = -1
-    patch: str = ''
+    kind: str = ''
 
     def __post_init__(self):
 
-        self.ix = [self.xz[0], self.xz[2]]
-        self.iz = [self.xz[1], self.xz[3]]
+        self.ix = (self.xz[0], self.xz[2])
+        self.iz = (self.xz[1], self.xz[3])
+        self.rx = range(self.xz[0], self.xz[2]+1)
+        self.rz = range(self.xz[1], self.xz[3]+1)
         self.sx = slice(self.xz[0], self.xz[2]+1)
         self.sz = slice(self.xz[1], self.xz[3]+1)
 
@@ -95,13 +336,13 @@ class Subdomain:
 
         if edges:
             for c in edges:
-                if c == (0, 0) and other.bc[0] is not 'P':
+                if c == (0, 0):
                     coords.append((self.xz[0], slice(self.xz[1]+1, self.xz[3])))
-                elif c == (1, 1) and other.bc[1] is not 'P':
+                elif c == (1, 1):
                     coords.append((slice(self.xz[0]+1, self.xz[2]), self.xz[1]))
-                elif c == (2, 2) and other.bc[2] is not 'P':
+                elif c == (2, 2):
                     coords.append((self.xz[2], slice(self.xz[1]+1, self.xz[3])))
-                elif c == (3, 3) and other.bc[3] is not 'P':
+                elif c == (3, 3):
                     coords.append((slice(self.xz[0]+1, self.xz[2]), self.xz[3]))
         return coords
 
@@ -145,8 +386,82 @@ class Subdomain:
 
         return self.bc
 
+    def split(self, index, nbc=None, axis=None):
+        """ Split the subdomain along axis'.
+        If index is integer, split into two Subdomain objects at 'index'.
+        If index is tuple/list (len(index) must be 2), split into 3 (or less)
+        Subdomain objects.
 
-class Domain:
+        Arguments:
+            index : int|tuple|list
+            nbc : Only if index is a sequence. New bc for the domain defined by 'index'
+            axis : 0 or 1. Along which axis to split
+        """
+
+        letters = string.ascii_lowercase
+        xz = []
+
+        if axis is None:
+            axis = self.axis
+
+        bounds = self._split_indexes(index, axis)
+
+        for bound in bounds:
+            if axis==0:
+                xz.append([bound[0], self.iz[0], bound[1], self.iz[1]])
+
+            elif axis==1:
+                xz.append([self.ix[0], bound[0], self.ix[1], bound[1]])
+
+            else:
+                raise ValueError('axis must be 0 or 1')
+
+        bc = self._split_bc(xz, index, nbc, axis)
+
+        return [Subdomain(xz[i], bc[i], no=f'{self.no}{letters[i]}',
+                axis=self.axis, kind=self.kind) for i in range(len(xz))]
+
+    def _split_indexes(self, index, axis):
+
+        if isinstance(index, int):
+
+            if self.xz[axis] < index < self.xz[axis+2]:
+                return [(self.xz[self.axis], index), (index+1, self.xz[self.axis+2])]
+
+            else:
+                raise ValueError('Index must be in the subdomain')
+
+        elif isinstance(index, tuple) or isinstance(index, list):
+
+            index = list(index)
+            if not is_ordered(index) or len(index) != 2:
+                raise ValueError('Index must be ordered and of length 2')
+
+            if self.xz[axis] <= index[0] and self.xz[axis+2] >= index[-1]:
+                s = sorted(list({self.xz[axis], self.xz[axis+2], *index}))[1:-1]
+                s += [i+1 for i in s]
+                s = sorted([self.xz[axis]] + s + [self.xz[axis+2]])
+                return [(s[i], s[i+1]) for i in range(0, len(s), 2)]
+
+            else:
+                raise ValueError('Indexes must be ordered and in the domain')
+
+        else:
+            raise ValueError('Index must be int, list, or tuple')
+
+    def _split_bc(self, xz, index, nbc, axis):
+        """ Determine bc when splitting Subdomain. """
+
+        bc = [self.bc]*len(xz)
+
+        if nbc and (isinstance(index, tuple) or isinstance(index, list)):
+            for idx, val in enumerate(xz):
+                if set(range(val[axis], val[axis+2])).issubset(set(range(*index))):
+                    bc[idx] = nbc
+        return bc
+
+
+class CoDomain:
     """ Divide computation domain in several subdomains based on obstacle in presence. """
 
     # pylint: disable=too-many-instance-attributes
@@ -158,9 +473,8 @@ class Domain:
         self._nx, self._nz = shape
         self._obstacles = obstacles
         self._bc = bc
-        self._xdomains = []
-        self._zdomains = []
-        self._patches = []
+        self._xdomains = Domains()
+        self._zdomains = Domains()
         self._nd = 0                             # Index of the subdomains
 
         # Initialize masks
@@ -172,11 +486,19 @@ class Domain:
         # Check if domain is completely processed
         self._check_subdomains()
 
+        # Update Domains considering periodic bc
+        if re.match(r'P.P.', self._bc):
+            mask, _ = self.init_masks(shape, bc, obstacles)
+            self._xdomains.periodic_bc(mask, axis=0)
+        if re.match(r'.P.P', self._bc):
+            mask, _ = self.init_masks(shape, bc, obstacles)
+            self._zdomains.periodic_bc(mask, axis=1)
+
     @staticmethod
     def init_masks(shape, bc, obstacles):
         """ Init masks with obstacles. """
 
-        whole_domain = Subdomain([0, 0, shape[0]-1, shape[1]-1], bc=bc, no=0)
+        whole_domain = Subdomain([0, 0, shape[0]-1, shape[1]-1], bc=bc, no=0, kind='a')
         xmask = np.zeros(shape, dtype=int)
         zmask = xmask.copy()
 
@@ -232,12 +554,12 @@ class Domain:
         """ Fill missing boundary conditions. """
 
         # The whole domain
-        whole_domain = Subdomain([0, 0, self._nx-1, self._nz-1], bc=self._bc, no=0)
+        whole_domain = Subdomain([0, 0, self._nx-1, self._nz-1], bc=self._bc, no=0, kind='a')
 
         fdomain = self._obstacles + [whole_domain]
 
 #        for i in range(2):
-#            listing = [s for s in self.listing[i] if not s.patch]
+#            listing = [s for s in self.listing[i] if not s.kind]
 #            for sub1, sub2 in itertools.permutations(listing + fdomain, r=2):
 #                if sub1.axis or sub2.axis:
 #                    _ = sub1@sub2
@@ -300,7 +622,7 @@ class Domain:
         if abs(zc2 - zc1) < self._stencil:
             raise CloseObstaclesError(CloseObstaclesError.msg.format(obs, self._stencil))
 
-        self._update_domains(Subdomain([xc1, zc1, xc2, zc2], bc, self.nd, axis=1))
+        self._update_domains(Subdomain((xc1, zc1, xc2, zc2), bc, self.nd, axis=1, kind='d'))
 
     def _extrude_bottom(self, obs, idx):
         """ Extrude bottom wall of the obstacle. """
@@ -324,7 +646,7 @@ class Domain:
         if abs(zc2 - zc1) < self._stencil:
             raise CloseObstaclesError(CloseObstaclesError.msg.format(obs, self._stencil))
 
-        self._update_domains(Subdomain([xc1, zc2, xc2, zc1], bc, self.nd, axis=1))
+        self._update_domains(Subdomain((xc1, zc2, xc2, zc1), bc, self.nd, axis=1, kind='d'))
 
     def _extrude_right(self, obs, idz):
         xc1, zc1 = obs.xz[2], idz[0]
@@ -348,7 +670,7 @@ class Domain:
             print(obs, abs(xc2-xc1))
             raise CloseObstaclesError(CloseObstaclesError.msg.format(obs, self._stencil))
 
-        self._update_domains(Subdomain([xc1, zc1, xc2, zc2], bc, self.nd, axis=0))
+        self._update_domains(Subdomain((xc1, zc1, xc2, zc2), bc, self.nd, axis=0, kind='d'))
 
     def _extrude_left(self, obs, idz):
         """ Extrude left wall of the obstacle. """
@@ -372,31 +694,31 @@ class Domain:
         if abs(xc2 - xc1) < self._stencil:
             raise CloseObstaclesError(CloseObstaclesError.msg.format(obs, self._stencil))
 
-        self._update_domains(Subdomain([xc2, zc1, xc1, zc2], bc, self.nd, axis=0))
+        self._update_domains(Subdomain((xc2, zc1, xc1, zc2), bc, self.nd, axis=0, kind='d'))
 
     def _xbetween(self):
         """ Find domains between obstacles along x axis. """
 
-        idz = Domain.bounds(self._shape, self._bc, self._obstacles, axis=1)
+        idz = CoDomain.bounds(self._shape, self._bc, self._obstacles, axis=1)
         if idz:
-            void = [[0, i[0], self._nx-1, i[1]] for i in idz if i[2] == 'v']
+            void = [(0, i[0], self._nx-1, i[1]) for i in idz if i[2] == 'v']
             void = remove_dups(void)
             for sub in void:
                 self._update_domains(Subdomain(sub,
                                                '{}.{}.'.format(self._bc[0], self._bc[2]),
-                                               self.nd, axis=0))
+                                               self.nd, axis=0, kind='d'))
 
     def _zbetween(self):
         """ Find domains between obstacles along z axis. """
 
-        idx = Domain.bounds(self._shape, self._bc, self._obstacles, axis=0)
+        idx = CoDomain.bounds(self._shape, self._bc, self._obstacles, axis=0)
         if idx:
-            void = [[i[0], 0, i[1], self._nz-1] for i in idx if i[2] == 'v']
+            void = [(i[0], 0, i[1], self._nz-1) for i in idx if i[2] == 'v']
             void = remove_dups(void)
             for sub in void:
                 self._update_domains(Subdomain(sub,
                                                '.{}.{}'.format(self._bc[1], self._bc[3]),
-                                               self.nd, axis=1))
+                                               self.nd, axis=1, kind='d'))
 
     def _fill(self):
         """ Search remaining domains along both x and z axises. """
@@ -410,7 +732,7 @@ class Domain:
             if c[2] == self._nx - 1:
                 bc[2] = self._bc[2]
 
-            self._update_domains(Subdomain(c, no=self.nd, bc=''.join(bc), axis=0))
+            self._update_domains(Subdomain(c, no=self.nd, bc=''.join(bc), axis=0, kind='d'))
 
         for c in zmissings:
 
@@ -420,7 +742,7 @@ class Domain:
             if c[3] == self._nz - 1:
                 bc[3] == self._bc[3]
 
-            self._update_domains(Subdomain(c, no=self.nd, bc=''.join(bc), axis=1))
+            self._update_domains(Subdomain(c, no=self.nd, bc=''.join(bc), axis=1, kind='d'))
 
     def _update_patches(self, val=1):
         """ Add patches. TODO : Fix 'else R' if an obstacle has another bc !"""
@@ -438,7 +760,7 @@ class Domain:
                 bc[2] = 'X' if self._xmask[patch[2]+1, patch[1]] == 1 else 'R'
 
             self._update_domains(Subdomain(patch, axis=0, no=self.nd,
-                                           bc=''.join(bc), patch='p'))
+                                           bc=''.join(bc), kind='p'))
 
         for patch in find_areas(self._zmask, val=-2):
             bc = ['.', '.', '.', '.']
@@ -453,7 +775,7 @@ class Domain:
                 bc[3] = 'X' if self._xmask[patch[0], patch[3]+1] == 1 else 'R'
 
             self._update_domains(Subdomain(patch, axis=1, no=self.nd,
-                                           bc=''.join(bc), patch='p'))
+                                           bc=''.join(bc), kind='p'))
 
     def _update_domains(self, sub, val=1):
         """ Update mask and list of subdomains. """
@@ -486,7 +808,7 @@ class Domain:
     def nd(self):
         """ Index of each subdomain. """
         self._nd += 1
-        return self._nd
+        return str(self._nd)
 
     @property
     def missing_domains(self):
@@ -510,11 +832,9 @@ class Domain:
 
     def __repr__(self):
         r = '*** x-domains ***\n'
-        for s in self._xdomains:
-            r += '\t{}\n'.format(s)
+        r += repr(self._xdomains)
         r += '\n*** z-domains ***\n'
-        for s in self._zdomains:
-            r += '\t{}\n'.format(s)
+        r += repr(self._zdomains)
         return r
 
     def __str__(self):
@@ -545,7 +865,7 @@ class Domain:
 
 
         bounds = []
-        mask = Domain.init_masks(shape, bc, obstacles)[axis] < 0
+        mask = CoDomain.init_masks(shape, bc, obstacles)[axis] < 0
 
         for i in range(mask.shape[axis]):
             if axis == 0:
@@ -572,5 +892,5 @@ if __name__ == "__main__":
 
     nx, nz = 256, 128
 
-    domain = Domain((nx, nz), obstacles=templates.helmholtz(nx, nz), bc='RRRR')
+    domain = CoDomain((nx, nz), obstacles=templates.helmholtz(nx, nz), bc='RRRR')
     print(domain)

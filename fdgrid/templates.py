@@ -29,7 +29,7 @@ Examples of obstacle arangements.
 """
 
 
-from .domain import Subdomain
+from .domain import Domains, Subdomain
 
 
 class TemplateConstructionError(Exception):
@@ -39,15 +39,18 @@ class TemplateConstructionError(Exception):
 
 def testcase1(nx, nz):
     """ Random arrangement of obstacles. """
-    return [Subdomain([0, 0, 60, 40], 'RRRR'),
-            Subdomain([23, 40, 33, 50], 'RRRR'),
-            Subdomain([56, 40, 60, 60], 'RRRR'),
-            Subdomain([100, 80, 120, 90], 'RRRR'),
-            Subdomain([90, 20, 110, 30], 'RRRR'),
-            Subdomain([nx-90, nz-90, nx-60, nz-1], 'RRRR'),
-            Subdomain([nx-60, nz-11, nx-1, nz-1], 'RRRR'),
-            Subdomain([nx-60, nz-44, nx-30, nz-34], 'RRRR'),
-            Subdomain([nx-60, nz-80, nx-40, nz-67], 'RRRR')]
+
+    geo = [Subdomain([0, 0, 60, 40], 'RRRR'),
+           Subdomain([23, 40, 33, 50], 'RRRR'),
+           Subdomain([56, 40, 60, 60], 'RRRR'),
+           Subdomain([100, 80, 120, 90], 'RRRR'),
+           Subdomain([90, 20, 110, 30], 'RRRR'),
+           Subdomain([nx-90, nz-90, nx-60, nz-1], 'RRRR'),
+           Subdomain([nx-60, nz-11, nx-1, nz-1], 'RRRR'),
+           Subdomain([nx-60, nz-44, nx-30, nz-34], 'RRRR'),
+           Subdomain([nx-60, nz-80, nx-40, nz-67], 'RRRR')]
+
+    return Domains(geo)
 
 
 def helmholtz(nx, nz, cavity=(0.2, 0.2), neck=(0.1, 0.1)):
@@ -61,26 +64,24 @@ def helmholtz(nx, nz, cavity=(0.2, 0.2), neck=(0.1, 0.1)):
 
     """
 
-    neck_width = int(nx*neck[0])
-    cvty_width = int(nx*cavity[0])
-    neck_height = int(nz*neck[1])
-    cvty_height = int(nz*cavity[1])
+    neck_wdth = int(nx*neck[0])
+    cvty_wdth = int(nx*cavity[0])
+    neck_hght = int(nz*neck[1])
+    cvty_hght = int(nz*cavity[1])
 
-    neck_ix = int((nx - neck_width)/2)
-    cvty_ix = int((nx - cvty_width)/2)
+    neck_ix = int((nx - neck_wdth)/2)
+    cvty_ix = int((nx - cvty_wdth)/2)
 
 
     if cavity[0] + neck[0] > 0.98 or cavity[1] + neck[1] > 0.98:
         raise TemplateConstructionError("resonator must be smaller than the domain")
 
-    return [Subdomain([0, 0,
-                       cvty_ix, cvty_height], 'RRRR'),
-            Subdomain([cvty_ix+cvty_width, 0,
-                       nx-1, cvty_height], 'RRRR'),
-            Subdomain([0, cvty_height,
-                       neck_ix, cvty_height+neck_height], 'RRRR'),
-            Subdomain([neck_ix+neck_width, cvty_height,
-                       nx-1, cvty_height+neck_height], 'RRRR')]
+    geo = [Subdomain([0, 0, cvty_ix, cvty_hght], 'RRRR'),
+           Subdomain([cvty_ix+cvty_wdth, 0, nx-1, cvty_hght], 'RRRR'),
+           Subdomain([0, cvty_hght, neck_ix, cvty_hght+neck_hght], 'RRRR'),
+           Subdomain([neck_ix+neck_wdth, cvty_hght, nx-1, cvty_hght+neck_hght], 'RRRR')]
+
+    return Domains(geo)
 
 
 def plus(nx, nz, ix0=None, iz0=None, size=20):
@@ -102,17 +103,15 @@ def plus(nx, nz, ix0=None, iz0=None, size=20):
         msg = "Center of the plus must be greater than 1.5 time the size of a square"
         raise TemplateConstructionError(msg)
 
-    ix_start = int(ix0 - 1.5*size)
-    iz_start = int(iz0 - 0.5*size)
+    ixstart = int(ix0 - 1.5*size)
+    izstart = int(iz0 - 0.5*size)
 
-    return [Subdomain([ix_start, iz_start,
-                       ix_start+size, iz_start+size], 'RRRR'),
-            Subdomain([ix_start+2*size, iz_start,
-                       ix_start+3*size, iz_start+size], 'RRRR'),
-            Subdomain([ix_start+size, iz_start-size,
-                       ix_start+2*size, iz_start], 'RRRR'),
-            Subdomain([ix_start+size, iz_start+size,
-                       ix_start+2*size, iz_start+2*size], 'RRRR')]
+    geo = [Subdomain([ixstart, izstart, ixstart+size, izstart+size], 'RRRR'),
+           Subdomain([ixstart+2*size, izstart, ixstart+3*size, izstart+size], 'RRRR'),
+           Subdomain([ixstart+size, izstart-size, ixstart+2*size, izstart], 'RRRR'),
+           Subdomain([ixstart+size, izstart+size, ixstart+2*size, izstart+2*size], 'RRRR')]
+
+    return Domains(geo)
 
 
 def square(nx, nz, size_percent=20):
@@ -126,23 +125,58 @@ def square(nx, nz, size_percent=20):
     """
 
     size = int(min(nx, nz)*size_percent/100)
+    geo = [Subdomain([int(nx/2)-size, int(nz/2)-size,
+                      int(nx/2)+size, int(nz/2)+size], 'RRRR')]
 
-    return [Subdomain([int(nx/2)-size, int(nz/2)-size,
-                       int(nx/2)+size, int(nz/2)+size], 'RRRR')]
+    return Domains(geo)
 
 
 def street(nx, nz, street_size=50):
     """ Street with building facades. """
 
-    return [Subdomain([0, 0, int(0.7*nx), int(nz*0.25)], 'RRRR'),
-            Subdomain([int(0.8*nx), 0, nx-1, int(nz*0.25)], 'RRRR'),
-            Subdomain([0, int(nz*0.75), nx-1, nz-1], 'RRRR'),
-            Subdomain([int(0.05*nx), int(nz*0.7), int(0.15*nx), int(0.75*nz)], 'RRRR'),
-            Subdomain([int(0.35*nx), int(nz*0.69), int(0.50*nx), int(0.75*nz)], 'RRRR'),
-            Subdomain([int(0.60*nx), int(nz*0.72), int(0.70*nx), int(0.75*nz)], 'RRRR'),
-            Subdomain([int(0.80*nx), int(nz*0.73), int(0.95*nx), int(0.75*nz)], 'RRRR'),
-            Subdomain([int(0.80*nx), int(nz*0.25), int(0.95*nx), int(0.30*nz)], 'RRRR'),
-            Subdomain([int(0.10*nx), int(nz*0.25), int(0.15*nx), int(0.30*nz)], 'RRRR'),
-            Subdomain([int(0.30*nx), int(nz*0.25), int(0.38*nx), int(0.28*nz)], 'RRRR'),
-            Subdomain([int(0.55*nx), int(nz*0.25), int(0.70*nx), int(0.28*nz)], 'RRRR')]
+    geo = [Subdomain([0, 0, int(0.7*nx), int(nz*0.25)], 'RRRR'),
+           Subdomain([int(0.8*nx), 0, nx-1, int(nz*0.25)], 'RRRR'),
+           Subdomain([0, int(nz*0.75), nx-1, nz-1], 'RRRR'),
+           Subdomain([int(0.05*nx), int(nz*0.7), int(0.15*nx), int(0.75*nz)], 'RRRR'),
+           Subdomain([int(0.35*nx), int(nz*0.69), int(0.50*nx), int(0.75*nz)], 'RRRR'),
+           Subdomain([int(0.60*nx), int(nz*0.72), int(0.70*nx), int(0.75*nz)], 'RRRR'),
+           Subdomain([int(0.80*nx), int(nz*0.73), int(0.95*nx), int(0.75*nz)], 'RRRR'),
+           Subdomain([int(0.80*nx), int(nz*0.25), int(0.95*nx), int(0.30*nz)], 'RRRR'),
+           Subdomain([int(0.10*nx), int(nz*0.25), int(0.15*nx), int(0.30*nz)], 'RRRR'),
+           Subdomain([int(0.30*nx), int(nz*0.25), int(0.38*nx), int(0.28*nz)], 'RRRR'),
+           Subdomain([int(0.55*nx), int(nz*0.25), int(0.70*nx), int(0.28*nz)], 'RRRR')]
+
+    return Domains(geo)
+
+
+def test_period(nx, nz, cavity=(0.2, 0.2), neck=(0.1, 0.1)):
+    """ Helmholtz resonator.
+
+    Parameters:
+    -----------
+
+    cavity (tuple): Normalized (width, height) of the cavity
+    neck (tuple): Normalized (width, height) of the neck
+
+    """
+
+    neck_wdth = int(nx*neck[0])
+    cvty_wdth = int(nx*cavity[0])
+    neck_hght = int(nz*neck[1])
+    cvty_hght = int(nz*cavity[1])
+
+    neck_ix = int((nx - neck_wdth)/2)
+    cvty_ix = int((nx - cvty_wdth)/2)
+
+
+    if cavity[0] + neck[0] > 0.98 or cavity[1] + neck[1] > 0.98:
+        raise TemplateConstructionError("resonator must be smaller than the domain")
+
+    geo = [Subdomain([cvty_ix+cvty_wdth-5, nz-30, cvty_ix+cvty_wdth+5, nz-1], 'RRRR'),
+           Subdomain([0, 0, cvty_ix, cvty_hght], 'RRRR'),
+           Subdomain([cvty_ix+cvty_wdth, 0, nx-1, cvty_hght], 'RRRR'),
+           Subdomain([0, cvty_hght, neck_ix, cvty_hght+neck_hght], 'RRRR'),
+           Subdomain([neck_ix+neck_wdth, cvty_hght, nx-1, cvty_hght+neck_hght], 'RRRR')]
+
+    return Domains(geo)
 

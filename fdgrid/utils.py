@@ -32,6 +32,12 @@ import numpy as np
 import scipy.ndimage as ndimage
 
 
+def is_ordered(lst):
+    """ Test if a list is ordered. """
+    tmp = lst[:]
+    return all(tmp) == all(lst)
+
+
 def find_areas(array, val=0):
     """
     Find rectangles areas in 'array' with value 'val'. Return a list of
@@ -70,7 +76,7 @@ def remove_singles(array, size=1, oldval=-2, newval=-1):
 def split_discontinuous(array):
     """ Split discontinuous array. """
     idx = np.argwhere(np.diff(array) != 1).ravel()
-    return [[min(l), max(l)] for l in np.split(array, idx+1)]
+    return [(min(l), max(l)) for l in np.split(array, idx+1)]
 
 
 def remove_dups(lst):
