@@ -38,7 +38,7 @@ class TemplateConstructionError(Exception):
 
 
 def testcase1(nx, nz):
-    """ Random arrangement of obstacles. """
+    """ Test case with complex geometry. """
 
     geo = [Subdomain([0, 0, 60, 40], 'RRRR'),
            Subdomain([23, 40, 33, 50], 'RRRR'),
@@ -49,6 +49,17 @@ def testcase1(nx, nz):
            Subdomain([nx-60, nz-11, nx-1, nz-1], 'RRRR'),
            Subdomain([nx-60, nz-44, nx-30, nz-34], 'RRRR'),
            Subdomain([nx-60, nz-80, nx-40, nz-67], 'RRRR')]
+
+    return Domains(geo)
+
+def testcase2(nx, nz):
+    """ Test case for periodic bc. """
+
+    geo = [Subdomain([0, 0, 10, 10], 'RRRR'),
+           Subdomain([0, 30, 10, int(3*nz/4)-5], 'RRRR'),
+           Subdomain([30, nz-10, int(nx/2)+10, nz-1], 'RRRR'),
+           Subdomain([int(nx/2), 0, int(3*nx/4), 10], 'RRRR'),
+           Subdomain([nx-10, int(3*nz/4), nx-1, int(3*nz/4)+10], 'RRRR')]
 
     return Domains(geo)
 
@@ -147,36 +158,3 @@ def street(nx, nz, street_size=50):
            Subdomain([int(0.55*nx), int(nz*0.25), int(0.70*nx), int(0.28*nz)], 'RRRR')]
 
     return Domains(geo)
-
-
-def test_period(nx, nz, cavity=(0.2, 0.2), neck=(0.1, 0.1)):
-    """ Helmholtz resonator.
-
-    Parameters:
-    -----------
-
-    cavity (tuple): Normalized (width, height) of the cavity
-    neck (tuple): Normalized (width, height) of the neck
-
-    """
-
-    neck_wdth = int(nx*neck[0])
-    cvty_wdth = int(nx*cavity[0])
-    neck_hght = int(nz*neck[1])
-    cvty_hght = int(nz*cavity[1])
-
-    neck_ix = int((nx - neck_wdth)/2)
-    cvty_ix = int((nx - cvty_wdth)/2)
-
-
-    if cavity[0] + neck[0] > 0.98 or cavity[1] + neck[1] > 0.98:
-        raise TemplateConstructionError("resonator must be smaller than the domain")
-
-    geo = [Subdomain([cvty_ix+cvty_wdth-5, nz-30, cvty_ix+cvty_wdth+5, nz-1], 'RRRR'),
-           Subdomain([0, 0, cvty_ix, cvty_hght], 'RRRR'),
-           Subdomain([cvty_ix+cvty_wdth, 0, nx-1, cvty_hght], 'RRRR'),
-           Subdomain([0, cvty_hght, neck_ix, cvty_hght+neck_hght], 'RRRR'),
-           Subdomain([neck_ix+neck_wdth, cvty_hght, nx-1, cvty_hght+neck_hght], 'RRRR')]
-
-    return Domains(geo)
-

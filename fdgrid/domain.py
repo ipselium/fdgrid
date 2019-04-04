@@ -104,9 +104,14 @@ class Domains:
 
         if axis == 0:
             self._xperiod(mask)
+            self.rigid_bc = self.get_rigid(mask.shape[0], axis=axis)
 
-        if axis == 1:
+        elif axis == 1:
             self._zperiod(mask)
+            self.rigid_bc = self.get_rigid(mask.shape[1], axis=axis)
+
+        else:
+            raise ValueError('axis must be 0 or 1')
 
     def _xperiod(self, mask):
 
@@ -171,6 +176,25 @@ class Domains:
             elif set(range(bound[0], bound[1]+1)).issubset(set(getattr(sub, attr))):
                 #print(f'Process {sub.no} : split subdomain')
                 self[sub.no] = sub.split(bound, nbc=nbc, axis=axis)
+
+    def get_rigid(self, N, axis=None):
+
+        rigid_bc = []
+
+        for sub in self:
+            if sub.xz[axis] == 0 and sub.bc[axis] == 'R':
+                if axis == 0:
+                    rigid_bc.append((0, sub.sz))
+                elif axis == 1:
+                    rigid_bc.append((sub.sx, 0))
+
+            elif sub.xz[axis+2] == N-1 and sub.bc[axis+2] == 'R':
+                if axis == 0:
+                    rigid_bc.append((-1, sub.sz))
+                elif axis == 1:
+                    rigid_bc.append((sub.sx, -1))
+
+        return rigid_bc
 
     @property
     def _no(self):
@@ -423,6 +447,13 @@ class Subdomain:
 
     def _split_indexes(self, index, axis):
 
+        if axis == 0:
+            r = 'rx'
+        elif axis == 1:
+            r = 'rz'
+        else:
+            raise ValueError('axis must be 0 or 1')
+
         if isinstance(index, int):
 
             if self.xz[axis] < index < self.xz[axis+2]:
@@ -433,18 +464,21 @@ class Subdomain:
 
         elif isinstance(index, tuple) or isinstance(index, list):
 
-            index = list(index)
-            if not is_ordered(index) or len(index) != 2:
-                raise ValueError('Index must be ordered and of length 2')
+            if len(index) == 2:
+                index = tuple(sorted(list(index)))
+                index_set = set(range(index[0], index[1]+1))
+                domain_set = set(getattr(self, r))
 
-            if self.xz[axis] <= index[0] and self.xz[axis+2] >= index[-1]:
-                s = sorted(list({self.xz[axis], self.xz[axis+2], *index}))[1:-1]
-                s += [i+1 for i in s]
-                s = sorted([self.xz[axis]] + s + [self.xz[axis+2]])
-                return [(s[i], s[i+1]) for i in range(0, len(s), 2)]
-
+                if index_set.issubset(domain_set):
+                    remaining = list(domain_set.difference(index_set))
+                    lst = split_discontinuous(remaining)
+                    lst.append(index)
+                    lst.sort()
+                    return lst
+                else:
+                    raise ValueError('indexes must be in the domain')
             else:
-                raise ValueError('Indexes must be ordered and in the domain')
+                raise ValueError('Index of length 2')
 
         else:
             raise ValueError('Index must be int, list, or tuple')
