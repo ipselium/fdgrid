@@ -161,15 +161,20 @@ class Mesh:
 
             self._plot_areas(ax, self.obstacles, fcolor='k', ecolor='k')
 
-        self._plot_areas(axes[0], [s for s in self.xdomains if s.kind=='d'],
+        self._plot_areas(axes[0], [s for s in self.xdomains if s.tag=='X'],
 			 fcolor='y', ecolor='b', legend=legend)
-        self._plot_areas(axes[1], [s for s in self.zdomains if s.kind=='d'],
+        self._plot_areas(axes[1], [s for s in self.zdomains if s.tag=='X'],
 			 fcolor='y', ecolor='b', legend=legend)
 
-        self._plot_areas(axes[0], [s for s in self.xdomains if s.kind=='p'],
+        self._plot_areas(axes[0], [s for s in self.xdomains if s.tag=='W'],
 			 fcolor='y', ecolor='r', legend=legend)
-        self._plot_areas(axes[1], [s for s in self.zdomains if s.kind=='p'],
+        self._plot_areas(axes[1], [s for s in self.zdomains if s.tag=='W'],
 			 fcolor='y', ecolor='r', legend=legend)
+
+        self._plot_areas(axes[0], [s for s in self.xdomains if s.tag=='A'],
+			 fcolor='y', ecolor='g', legend=legend)
+        self._plot_areas(axes[1], [s for s in self.zdomains if s.tag=='A'],
+			 fcolor='y', ecolor='g', legend=legend)
 
         if legend:
 
@@ -201,9 +206,9 @@ class Mesh:
                                      linewidth=3, edgecolor=ecolor, facecolor=fcolor, alpha=0.5)
             ax.add_patch(rect)
 
-            if legend and a.kind is 'd':
+            if legend and a.tag in ['X', 'A']:
                 ax.text(self.x[a.ix[0]+2], self.z[a.iz[0]+2], a.no, color=ecolor)
-            elif legend and a.kind is 'p':
+            elif legend and a.tag is 'W':
                 ax.text(self.x[a.ix[1]]-5, self.z[a.iz[1]-5], a.no, color=ecolor)
 
 

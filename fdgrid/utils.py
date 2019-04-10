@@ -28,8 +28,19 @@ Some tools.
 @author: Cyril Desjouy
 """
 
+import re
 import numpy as np
 import scipy.ndimage as ndimage
+
+
+def sort(l):
+    """
+    Sort the given iterable in the way that humans expect.
+    From https://stackoverflow.com/questions/2669059/how-to-sort-alpha-numeric-set-in-python
+    """
+    convert = lambda text: int(text) if text.isdigit() else text
+    alphanum_key = lambda key: [ convert(c) for c in re.split('([0-9]+)', key) ]
+    return sorted(l, key = alphanum_key)
 
 
 def is_ordered(lst):
