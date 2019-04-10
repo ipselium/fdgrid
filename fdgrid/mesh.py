@@ -62,9 +62,12 @@ class Mesh:
 
     # pylint: disable=too-many-instance-attributes
 
-    def __init__(self, shape, step, origin=(0, 0), bc='RRRR', obstacles=None, Npml=15, stencil=11):
+    def __init__(self, shape, step, origin=(0, 0),
+                 bc='RRRR', obstacles=None, Npml=15, stencil=11, autojoin=True):
 
         # pylint: disable=too-many-arguments
+
+        self.autojoin = autojoin
 
         self.shape = shape
         self.nx, self.nz = shape
@@ -106,10 +109,10 @@ class Mesh:
     def _find_subdomains(self):
         """ Divide the computation domain in subdomains. """
 
-        self.domain = CoDomain((self.nx, self.nz), self.obstacles, self.bc, self.stencil)
+        self.domain = CoDomain((self.nx, self.nz), self.obstacles, self.bc, self.stencil, self.autojoin)
         self.xdomains, self.zdomains = self.domain.listing
         self.all_domains = self.xdomains + self.zdomains
-        self.sdomains = self.xdomains if len(self.xdomains) > len(self.zdomains) else self.zdomains
+        self.sdomains = self.xdomains if len(self.xdomains) < len(self.zdomains) else self.zdomains
 
     def _check_bc(self):
 

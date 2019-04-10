@@ -50,7 +50,8 @@ def testcase1(nx, nz):
            Subdomain([nx-60, nz-44, nx-30, nz-34], 'RRRR'),
            Subdomain([nx-60, nz-80, nx-40, nz-67], 'RRRR')]
 
-    return Domains(geo)
+    return Domains((nx, nz), data=geo)
+
 
 def testcase2(nx, nz):
     """ Test case for periodic bc. """
@@ -61,7 +62,7 @@ def testcase2(nx, nz):
            Subdomain([int(nx/2), 0, int(3*nx/4), 10], 'RRRR'),
            Subdomain([nx-10, int(3*nz/4), nx-1, int(3*nz/4)+10], 'RRRR')]
 
-    return Domains(geo)
+    return Domains((nx, nz), data=geo)
 
 
 def helmholtz(nx, nz, cavity=(0.2, 0.2), neck=(0.1, 0.1)):
@@ -92,7 +93,51 @@ def helmholtz(nx, nz, cavity=(0.2, 0.2), neck=(0.1, 0.1)):
            Subdomain([0, cvty_hght, neck_ix, cvty_hght+neck_hght], 'RRRR'),
            Subdomain([neck_ix+neck_wdth, cvty_hght, nx-1, cvty_hght+neck_hght], 'RRRR')]
 
-    return Domains(geo)
+    return Domains((nx, nz), data=geo)
+
+
+def helmholtz_double(nx, nz, cavity=(0.2, 0.2), neck=(0.1, 0.1)):
+    """ Helmholtz resonator.
+
+    Parameters:
+    -----------
+
+    cavity (tuple): Normalized (width, height) of the cavity
+    neck (tuple): Normalized (width, height) of the neck
+
+    """
+
+    xneck_wdth = int(nx*neck[0])
+    xcvty_wdth = int(nx*cavity[0])
+    xneck_hght = int(nz*neck[1])
+    xcvty_hght = int(nz*cavity[1])
+
+    neck_ix = int((nx - xneck_wdth)/2)
+    cvty_ix = int((nx - xcvty_wdth)/2)
+
+    zneck_wdth = int(nz*neck[0])
+    zcvty_wdth = int(nz*cavity[0])
+    zneck_hght = int(nx*neck[1])
+    zcvty_hght = int(nx*cavity[1])
+
+    neck_iz = int((nz - zneck_wdth)/2)
+    cvty_iz = int((nz - zcvty_wdth)/2)
+
+
+    if cavity[0] + neck[0] > 0.98 or cavity[1] + neck[1] > 0.98:
+        raise TemplateConstructionError("resonator must be smaller than the domain")
+
+    geo = [Subdomain([0, 0, cvty_ix, xcvty_hght], 'RRRR'),
+           Subdomain([cvty_ix+xcvty_wdth, 0, nx-1, xcvty_hght], 'RRRR'),
+           Subdomain([0, xcvty_hght, neck_ix, xcvty_hght+xneck_hght], 'RRRR'),
+           Subdomain([neck_ix+xneck_wdth, xcvty_hght, nx-1, xcvty_hght+xneck_hght], 'RRRR'),
+           Subdomain([nx-zcvty_hght, xcvty_hght+xneck_hght, nx-1, cvty_iz], 'RRRR'),
+           Subdomain([nx-zcvty_hght, cvty_iz+zcvty_wdth, nx-1, nz-1], 'RRRR'),
+           Subdomain([nx-zcvty_hght-zneck_hght, xcvty_hght+xneck_hght, nx-zcvty_hght , neck_iz], 'RRRR'),
+           Subdomain([nx-zcvty_hght-zneck_hght, neck_iz+zneck_wdth, nx-zcvty_hght, nz-1], 'RRRR')
+            ]
+
+    return Domains((nx, nz), data=geo)
 
 
 def plus(nx, nz, ix0=None, iz0=None, size=20):
@@ -122,7 +167,7 @@ def plus(nx, nz, ix0=None, iz0=None, size=20):
            Subdomain([ixstart+size, izstart-size, ixstart+2*size, izstart], 'RRRR'),
            Subdomain([ixstart+size, izstart+size, ixstart+2*size, izstart+2*size], 'RRRR')]
 
-    return Domains(geo)
+    return Domains((nx, nz), data=geo)
 
 
 def square(nx, nz, size_percent=20):
@@ -139,7 +184,7 @@ def square(nx, nz, size_percent=20):
     geo = [Subdomain([int(nx/2)-size, int(nz/2)-size,
                       int(nx/2)+size, int(nz/2)+size], 'RRRR')]
 
-    return Domains(geo)
+    return Domains((nx, nz), data=geo)
 
 
 def street(nx, nz, street_size=50):
@@ -157,4 +202,4 @@ def street(nx, nz, street_size=50):
            Subdomain([int(0.30*nx), int(nz*0.25), int(0.38*nx), int(0.28*nz)], 'RRRR'),
            Subdomain([int(0.55*nx), int(nz*0.25), int(0.70*nx), int(0.28*nz)], 'RRRR')]
 
-    return Domains(geo)
+    return Domains((nx, nz), data=geo)
