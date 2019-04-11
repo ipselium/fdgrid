@@ -99,6 +99,18 @@ def remove_dups(lst):
     return tmp
 
 
+def merge_bc(bc1, bc2):
+    bc = ''
+    for s1, s2 in zip(bc1, bc2):
+        if s1 == '.':
+            bc += s2
+        elif s2 == '.':
+            bc += s1
+        else:
+            raise ValueError('Boundaries are not compatible')
+    return bc
+
+
 def down_sample(v, N=4):
     """
     Keep 1 point over N.

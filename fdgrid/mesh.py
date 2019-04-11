@@ -109,10 +109,12 @@ class Mesh:
     def _find_subdomains(self):
         """ Divide the computation domain in subdomains. """
 
-        self.domain = CoDomain((self.nx, self.nz), self.obstacles, self.bc, self.stencil, self.autojoin)
+        self.domain = CoDomain((self.nx, self.nz), self.obstacles,
+                                self.bc, self.stencil, self.Npml, self.autojoin)
         self.xdomains, self.zdomains = self.domain.listing
-        self.all_domains = self.xdomains + self.zdomains
-        self.sdomains = self.xdomains if len(self.xdomains) < len(self.zdomains) else self.zdomains
+        self.all_domains = self.domain.all_domains
+        self.sdomains = self.domain.sdomains
+        self.gdomain = self.domain._gdomain
 
     def _check_bc(self):
 
@@ -133,7 +135,7 @@ class Mesh:
         if self.ix0 > self.nx or self.iz0 > self.nz:
             raise GridError("Origin of the domain must be in the domain")
 
-    def plot_domains(self, legend=True, N=4):
+    def plot_domains(self, legend=False, N=4):
         """ Plot a scheme of the computation domain higlighting the subdomains.
 
             Parameters
@@ -197,7 +199,7 @@ class Mesh:
         plt.tight_layout()
         plt.show()
 
-    def _plot_areas(self, ax, area, fcolor='k', ecolor='k', legend=True):
+    def _plot_areas(self, ax, area, fcolor='k', ecolor='k', legend=False):
 
         for a in area:
             rect = patches.Rectangle((self.x[a.ix[0]], self.z[a.iz[0]]),
@@ -207,9 +209,11 @@ class Mesh:
             ax.add_patch(rect)
 
             if legend and a.tag in ['X', 'A']:
-                ax.text(self.x[a.ix[0]+2], self.z[a.iz[0]+2], a.no, color=ecolor)
+                ax.text(self.x[a.center[0]]-self.dx*len(a.tag)*6,
+                        self.z[a.center[1]]-self.dz*3, a.key, color=ecolor)
             elif legend and a.tag is 'W':
-                ax.text(self.x[a.ix[1]]-5, self.z[a.iz[1]-5], a.no, color=ecolor)
+                ax.text(self.x[a.center[0]]-self.dx*len(a.tag)*6,
+                        self.z[a.center[1]]-self.dz*3, a.key, color=ecolor)
 
 
     @staticmethod

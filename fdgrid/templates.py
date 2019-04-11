@@ -41,10 +41,10 @@ def testcase1(nx, nz):
     """ Test case with complex geometry. """
 
     geo = [Subdomain([0, 0, 60, 40], 'RRRR'),
-           Subdomain([23, 40, 33, 50], 'RRRR'),
+           Subdomain([26, 40, 33, 50], 'RRRR'),
            Subdomain([56, 40, 60, 60], 'RRRR'),
            Subdomain([100, 80, 120, 90], 'RRRR'),
-           Subdomain([90, 20, 110, 30], 'RRRR'),
+           Subdomain([90, 26, 110, 36], 'RRRR'),
            Subdomain([nx-90, nz-90, nx-60, nz-1], 'RRRR'),
            Subdomain([nx-60, nz-11, nx-1, nz-1], 'RRRR'),
            Subdomain([nx-60, nz-44, nx-30, nz-34], 'RRRR'),
@@ -56,11 +56,13 @@ def testcase1(nx, nz):
 def testcase2(nx, nz):
     """ Test case for periodic bc. """
 
-    geo = [Subdomain([0, 0, 10, 10], 'RRRR'),
-           Subdomain([0, 30, 10, int(3*nz/4)-5], 'RRRR'),
-           Subdomain([30, nz-10, int(nx/2)+10, nz-1], 'RRRR'),
-           Subdomain([int(nx/2), 0, int(3*nx/4), 10], 'RRRR'),
-           Subdomain([nx-10, int(3*nz/4), nx-1, int(3*nz/4)+10], 'RRRR')]
+    PML = 16
+
+    geo = [Subdomain([0, 0, PML, PML], 'RRRR'),
+           Subdomain([0, 30, PML, int(3*nz/4)-5], 'RRRR'),
+           Subdomain([30, nz-PML-1, int(nx/2)+10, nz-1], 'RRRR'),
+           Subdomain([int(nx/2), 0, int(3*nx/4), PML], 'RRRR'),
+           Subdomain([nx-PML-1, int(3*nz/4), nx-1, int(3*nz/4)+10], 'RRRR')]
 
     return Domains((nx, nz), data=geo)
 
@@ -193,12 +195,12 @@ def street(nx, nz, street_size=50):
     geo = [Subdomain([0, 0, int(0.7*nx), int(nz*0.25)], 'RRRR'),
            Subdomain([int(0.8*nx), 0, nx-1, int(nz*0.25)], 'RRRR'),
            Subdomain([0, int(nz*0.75), nx-1, nz-1], 'RRRR'),
-           Subdomain([int(0.05*nx), int(nz*0.7), int(0.15*nx), int(0.75*nz)], 'RRRR'),
+           Subdomain([int(0.11*nx), int(nz*0.7), int(0.15*nx), int(0.75*nz)], 'RRRR'),
            Subdomain([int(0.35*nx), int(nz*0.69), int(0.50*nx), int(0.75*nz)], 'RRRR'),
            Subdomain([int(0.60*nx), int(nz*0.72), int(0.70*nx), int(0.75*nz)], 'RRRR'),
-           Subdomain([int(0.80*nx), int(nz*0.73), int(0.95*nx), int(0.75*nz)], 'RRRR'),
-           Subdomain([int(0.80*nx), int(nz*0.25), int(0.95*nx), int(0.30*nz)], 'RRRR'),
-           Subdomain([int(0.10*nx), int(nz*0.25), int(0.15*nx), int(0.30*nz)], 'RRRR'),
+           Subdomain([int(0.80*nx), int(nz*0.73), int(0.89*nx), int(0.75*nz)], 'RRRR'),
+           Subdomain([int(0.80*nx), int(nz*0.25), int(0.89*nx), int(0.30*nz)], 'RRRR'),
+           Subdomain([int(0.13*nx), int(nz*0.25), int(0.20*nx), int(0.30*nz)], 'RRRR'),
            Subdomain([int(0.30*nx), int(nz*0.25), int(0.38*nx), int(0.28*nz)], 'RRRR'),
            Subdomain([int(0.55*nx), int(nz*0.25), int(0.70*nx), int(0.28*nz)], 'RRRR')]
 
