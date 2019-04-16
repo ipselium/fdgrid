@@ -29,7 +29,7 @@ Examples of obstacle arangements.
 """
 
 
-from .domain import Domains, Subdomain
+from .domains import Domain, Subdomain
 
 
 class TemplateConstructionError(Exception):
@@ -46,11 +46,11 @@ def testcase1(nx, nz):
            Subdomain([100, 80, 120, 90], 'RRRR'),
            Subdomain([90, 26, 110, 36], 'RRRR'),
            Subdomain([nx-90, nz-90, nx-60, nz-1], 'RRRR'),
-           Subdomain([nx-60, nz-11, nx-1, nz-1], 'RRRR'),
-           Subdomain([nx-60, nz-44, nx-30, nz-34], 'RRRR'),
+           Subdomain([nx-60, nz-17, nx-1, nz-1], 'RRRR'),
+           Subdomain([nx-60, nz-44, nx-30, nz-40], 'RRRR'),
            Subdomain([nx-60, nz-80, nx-40, nz-67], 'RRRR')]
 
-    return Domains((nx, nz), data=geo)
+    return Domain((nx, nz), data=geo)
 
 
 def testcase2(nx, nz):
@@ -64,7 +64,7 @@ def testcase2(nx, nz):
            Subdomain([int(nx/2), 0, int(3*nx/4), PML], 'RRRR'),
            Subdomain([nx-PML-1, int(3*nz/4), nx-1, int(3*nz/4)+10], 'RRRR')]
 
-    return Domains((nx, nz), data=geo)
+    return Domain((nx, nz), data=geo)
 
 
 def helmholtz(nx, nz, cavity=(0.2, 0.2), neck=(0.1, 0.1)):
@@ -95,7 +95,7 @@ def helmholtz(nx, nz, cavity=(0.2, 0.2), neck=(0.1, 0.1)):
            Subdomain([0, cvty_hght, neck_ix, cvty_hght+neck_hght], 'RRRR'),
            Subdomain([neck_ix+neck_wdth, cvty_hght, nx-1, cvty_hght+neck_hght], 'RRRR')]
 
-    return Domains((nx, nz), data=geo)
+    return Domain((nx, nz), data=geo)
 
 
 def helmholtz_double(nx, nz, cavity=(0.2, 0.2), neck=(0.1, 0.1)):
@@ -139,7 +139,7 @@ def helmholtz_double(nx, nz, cavity=(0.2, 0.2), neck=(0.1, 0.1)):
            Subdomain([nx-zcvty_hght-zneck_hght, neck_iz+zneck_wdth, nx-zcvty_hght, nz-1], 'RRRR')
             ]
 
-    return Domains((nx, nz), data=geo)
+    return Domain((nx, nz), data=geo)
 
 
 def plus(nx, nz, ix0=None, iz0=None, size=20):
@@ -169,7 +169,7 @@ def plus(nx, nz, ix0=None, iz0=None, size=20):
            Subdomain([ixstart+size, izstart-size, ixstart+2*size, izstart], 'RRRR'),
            Subdomain([ixstart+size, izstart+size, ixstart+2*size, izstart+2*size], 'RRRR')]
 
-    return Domains((nx, nz), data=geo)
+    return Domain((nx, nz), data=geo)
 
 
 def square(nx, nz, size_percent=20):
@@ -186,7 +186,7 @@ def square(nx, nz, size_percent=20):
     geo = [Subdomain([int(nx/2)-size, int(nz/2)-size,
                       int(nx/2)+size, int(nz/2)+size], 'RRRR')]
 
-    return Domains((nx, nz), data=geo)
+    return Domain((nx, nz), data=geo)
 
 
 def street(nx, nz, street_size=50):
@@ -204,4 +204,4 @@ def street(nx, nz, street_size=50):
            Subdomain([int(0.30*nx), int(nz*0.25), int(0.38*nx), int(0.28*nz)], 'RRRR'),
            Subdomain([int(0.55*nx), int(nz*0.25), int(0.70*nx), int(0.28*nz)], 'RRRR')]
 
-    return Domains((nx, nz), data=geo)
+    return Domain((nx, nz), data=geo)

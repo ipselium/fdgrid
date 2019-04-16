@@ -20,6 +20,9 @@
 #
 #
 # Creation Date : 2019-02-13 - 10:30:40
+#
+# pylint: disable=too-many-instance-attributes
+# pylint: disable=too-many-arguments
 """
 -----------
 
@@ -31,11 +34,10 @@ Submodule `mesh` provides the mesh class.
 import re
 import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib.patches as patches
+from matplotlib import patches, ticker
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-from matplotlib.ticker import NullFormatter
 from .utils import down_sample
-from .domain import CoDomain
+from .cdomain import ComputationDomains
 
 
 class BoundaryConditionError(Exception):
@@ -60,14 +62,9 @@ class Mesh:
 
     """
 
-    # pylint: disable=too-many-instance-attributes
-
     def __init__(self, shape, step, origin=(0, 0),
-                 bc='RRRR', obstacles=None, Npml=15, stencil=11, autojoin=True):
+                 bc='RRRR', obstacles=None, Npml=15, stencil=11):
 
-        # pylint: disable=too-many-arguments
-
-        self.autojoin = autojoin
 
         self.shape = shape
         self.nx, self.nz = shape
@@ -102,19 +99,21 @@ class Mesh:
         return self.dx if axis == 0 else self.dz if axis == 1 else None
 
     def _limits(self):
-        xlim = CoDomain.bounds(self.shape, self.bc, self.obstacles, axis=0)
-        zlim = CoDomain.bounds(self.shape, self.bc, self.obstacles, axis=1)
+        xlim = ComputationDomains.bounds(self.shape, self.bc, self.obstacles, axis=0)
+        zlim = ComputationDomains.bounds(self.shape, self.bc, self.obstacles, axis=1)
         return xlim, zlim
 
     def _find_subdomains(self):
         """ Divide the computation domain in subdomains. """
 
-        self.domain = CoDomain((self.nx, self.nz), self.obstacles,
-                                self.bc, self.stencil, self.Npml, self.autojoin)
-        self.xdomains, self.zdomains = self.domain.listing
-        self.all_domains = self.domain.all_domains
+        self.domain = ComputationDomains((self.nx, self.nz), self.obstacles,
+                                         self.bc, self.stencil, self.Npml)
+        self.xdomains = self.domain.xdomains
+        self.zdomains = self.domain.zdomains
+        self.adomains = self.domain.adomains
         self.sdomains = self.domain.sdomains
-        self.gdomain = self.domain._gdomain
+        self.gdomain = self.domain.gdomain
+        self.mdomains = self.xdomains + self.zdomains
 
     def _check_bc(self):
 
@@ -135,7 +134,7 @@ class Mesh:
         if self.ix0 > self.nx or self.iz0 > self.nz:
             raise GridError("Origin of the domain must be in the domain")
 
-    def plot_domains(self, legend=False, N=4):
+    def plot_domains(self, legend=False, N=4, size=(9, 18)):
         """ Plot a scheme of the computation domain higlighting the subdomains.
 
             Parameters
@@ -144,10 +143,11 @@ class Mesh:
             N: Keep one point over N
         """
 
-        _, axes = plt.subplots(2, 1, figsize=(9, 8))
+        _, axes = plt.subplots(2, 1, figsize=size)
 
         offset = 10
 
+        # Grid & Obstacles
         for ax in axes:
             ax.set_xlim(self.x.min() - offset*self.dx, self.x.max() + offset*self.dx)
             ax.set_ylim(self.z.min() - offset*self.dz, self.z.max() + offset*self.dz)
@@ -161,60 +161,60 @@ class Mesh:
             for x in down_sample(self.x, N):
                 ax.plot(x.repeat(self.nz), self.z, 'k', linewidth=0.5)
 
-            self._plot_areas(ax, self.obstacles, fcolor='k', ecolor='k')
+            self._plot_subdomains(ax, self.obstacles, fcolor='k', ecolor='k')
 
-        self._plot_areas(axes[0], [s for s in self.xdomains if s.tag=='X'],
-			 fcolor='y', ecolor='b', legend=legend)
-        self._plot_areas(axes[1], [s for s in self.zdomains if s.tag=='X'],
-			 fcolor='y', ecolor='b', legend=legend)
+        # Subdomains
+        for tag, color in zip(['X', 'W', 'A', 'Ac'], ['b', 'r', 'g', 'g']):
+            self._plot_subdomains(axes[0], [s for s in self.xdomains if s.tag == tag],
+                                  fcolor='y', ecolor=color, legend=legend)
+            self._plot_subdomains(axes[1], [s for s in self.zdomains if s.tag == tag],
+                                  fcolor='y', ecolor=color, legend=legend)
+            self._plot_subdomains(axes[0], [s for s in self.adomains if s.tag == tag],
+                                  fcolor='y', ecolor=color, legend=legend)
+            self._plot_subdomains(axes[1], [s for s in self.adomains if s.tag == tag],
+                                  fcolor='y', ecolor=color, legend=legend)
 
-        self._plot_areas(axes[0], [s for s in self.xdomains if s.tag=='W'],
-			 fcolor='y', ecolor='r', legend=legend)
-        self._plot_areas(axes[1], [s for s in self.zdomains if s.tag=='W'],
-			 fcolor='y', ecolor='r', legend=legend)
-
-        self._plot_areas(axes[0], [s for s in self.xdomains if s.tag=='A'],
-			 fcolor='y', ecolor='g', legend=legend)
-        self._plot_areas(axes[1], [s for s in self.zdomains if s.tag=='A'],
-			 fcolor='y', ecolor='g', legend=legend)
 
         if legend:
-
-            xloc = np.array([self.x[0] - self.dx*offset/2,
-                             (self.x[-1] - np.abs(self.x[0]))/2 + self.dx,
-                             self.x[-1] + self.dx,
-                             (self.x[-1] - np.abs(self.x[0]))/2])
-
-            zloc = np.array([(self.z[-1] - np.abs(self.z[0]))/2,
-                             self.z[0] - self.dz*offset/1.25,
-                             (self.z[-1] - np.abs(self.z[0]))/2,
-                             self.z[-1] + self.dz])
-
-            for bc, x, z in zip(self.bc, xloc, zloc):
-                for ax in axes:
-                    ax.text(x, z, bc, color='r')
+            self._show_bc(axes, offset)
 
             print(self.domain)
 
         plt.tight_layout()
         plt.show()
 
-    def _plot_areas(self, ax, area, fcolor='k', ecolor='k', legend=False):
+    def _show_bc(self, axes, offset):
+        """ Show text indicating each of the 4 bc of the domain. """
 
-        for a in area:
-            rect = patches.Rectangle((self.x[a.ix[0]], self.z[a.iz[0]]),
-                                     self.x[a.ix[1]]-self.x[a.ix[0]],
-                                     self.z[a.iz[1]]-self.z[a.iz[0]],
-                                     linewidth=3, edgecolor=ecolor, facecolor=fcolor, alpha=0.5)
+        xloc = np.array([self.x[0] - self.dx*offset/2,
+                         (self.x[-1] - np.abs(self.x[0]))/2 + self.dx,
+                         self.x[-1] + self.dx,
+                         (self.x[-1] - np.abs(self.x[0]))/2])
+
+        zloc = np.array([(self.z[-1] - np.abs(self.z[0]))/2,
+                         self.z[0] - self.dz*offset/1.25,
+                         (self.z[-1] - np.abs(self.z[0]))/2,
+                         self.z[-1] + self.dz])
+
+        for bc, x, z in zip(self.bc, xloc, zloc):
+            for ax in axes:
+                ax.text(x, z, bc, color='r')
+
+    def _plot_subdomains(self, ax, domain, fcolor='k', ecolor='k', legend=False):
+
+        for sub in domain:
+            rect = patches.Rectangle((self.x[sub.ix[0]], self.z[sub.iz[0]]),
+                                     self.x[sub.ix[1]]-self.x[sub.ix[0]],
+                                     self.z[sub.iz[1]]-self.z[sub.iz[0]],
+                                     linewidth=3,
+                                     edgecolor=ecolor,
+                                     facecolor=fcolor,
+                                     alpha=0.5)
             ax.add_patch(rect)
 
-            if legend and a.tag in ['X', 'A']:
-                ax.text(self.x[a.center[0]]-self.dx*len(a.tag)*6,
-                        self.z[a.center[1]]-self.dz*3, a.key, color=ecolor)
-            elif legend and a.tag is 'W':
-                ax.text(self.x[a.center[0]]-self.dx*len(a.tag)*6,
-                        self.z[a.center[1]]-self.dz*3, a.key, color=ecolor)
-
+            if legend and sub.tag in ['X', 'A', 'Ac', 'W']:
+                ax.text(self.x[sub.center[0]]-self.dx*len(sub.tag)*6,
+                        self.z[sub.center[1]]-self.dz*3, sub.key, color=ecolor)
 
     @staticmethod
     def plot_obstacles(x, z, ax, obstacles, facecolor='k', edgecolor='r'):
@@ -234,7 +234,7 @@ class Mesh:
         """ Grid representation """
 
 
-        nullfmt = NullFormatter()         # no labels
+        nullfmt = ticker.NullFormatter()         # no labels
 
         fig, ax_c = plt.subplots(figsize=(9, 5))
         fig.subplots_adjust(.1, .1, .95, .95)
@@ -245,7 +245,7 @@ class Mesh:
         ax_za = divider.append_axes('right', size='15%', pad=0.1)
         ax_zb = divider.append_axes('right', size='10%', pad=0.1)
 
-        self._plot_areas(ax_c, self.obstacles, fcolor='k')
+        self._plot_subdomains(ax_c, self.obstacles, fcolor='k')
 
         for z in down_sample(self.z, N):
             ax_c.plot(self.x, z.repeat(self.nx), 'k', linewidth=0.5)
@@ -471,7 +471,11 @@ class AdaptativeMesh(Mesh):
 class CurvilinearMesh(Mesh):
     """ Curvilinear Mesh """
 
-    def __init__(self, shape, step, origin=(0, 0), bc='RRRR', obstacles=None, Npml=15, stencil=11):
+    def __init__(self, shape, step, origin=(0, 0),
+                 bc='RRRR', obstacles=None, Npml=15, stencil=11):
+
+        super().__init__(shape, step, origin=(0, 0), bc='RRRR',
+                         obstacles=None, Npml=15, stencil=11)
 
         raise NotImplementedError('Soon it will be !')
 
@@ -480,11 +484,11 @@ if __name__ == "__main__":
 
     import templates
 
-    shape = (256, 128)
-    steps = (1e-4, 1e-4)
-    origin = 128, 64
-    obstacle = templates.plus(*shape)
+    shp = 256, 128
+    stps = 1e-4, 1e-4
+    orgn = 128, 64
+    obstcle = templates.plus(*shp)
 
 
-    mesh1 = Mesh(shape, steps, origin, obstacles=obstacle, bc='PAPZ')
+    mesh1 = Mesh(shp, stps, orgn, obstacles=obstcle, bc='PAPZ')
     mesh1.plot_domains(legend=True, N=2)
