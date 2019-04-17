@@ -164,7 +164,7 @@ class Mesh:
             self._plot_subdomains(ax, self.obstacles, fcolor='k', ecolor='k')
 
         # Subdomains
-        for tag, color in zip(['X', 'W', 'A', 'Ac'], ['b', 'r', 'g', 'g']):
+        for tag, color in zip(['X', 'W', 'A'], ['b', 'r', 'g']):
             self._plot_subdomains(axes[0], [s for s in self.xdomains if s.tag == tag],
                                   fcolor='y', ecolor=color, legend=legend)
             self._plot_subdomains(axes[1], [s for s in self.zdomains if s.tag == tag],
@@ -212,7 +212,7 @@ class Mesh:
                                      alpha=0.5)
             ax.add_patch(rect)
 
-            if legend and sub.tag in ['X', 'A', 'Ac', 'W']:
+            if legend and sub.tag in ['X', 'A', 'W']:
                 ax.text(self.x[sub.center[0]]-self.dx*len(sub.tag)*6,
                         self.z[sub.center[1]]-self.dz*3, sub.key, color=ecolor)
 

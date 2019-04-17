@@ -169,12 +169,14 @@ class ComputationDomains:
     def _make_pml_domain(self, *args):
         """ Make the PML Domain object. """
 
+        # Transfer PML subdomain of xdomains and zdomains to adomains
         tmp = Domain(self._shape)
         for domains in args:
             l = [s for s in domains if s.tag[0] == 'A']
             for sub in l:
                 tmp.steal(domains, sub.key)
 
+        # Remove duplicates and update bc
         newsubs = Domain(self._shape)
         for sub1, sub2 in itertools.combinations(tmp, r=2):
             if sub1.xz == sub2.xz:
@@ -182,6 +184,17 @@ class ComputationDomains:
                 sub1.bc = bc
                 sub1.key = sub1.key.replace('x', 'a').replace('z', 'a')
                 newsubs.append(sub1)
+
+        # Update tag and axis
+        for sub in newsubs:
+            if len(sub.rx) == self._Npml and len(sub.rz) == self._Npml:
+                sub.tag = 'A'
+                sub.axis = 2
+            elif len(sub.rx) == self._Npml:
+                sub.axis = 0
+            elif len(sub.rz) == self._Npml:
+                sub.axis = 1
+
 
         return newsubs
 
