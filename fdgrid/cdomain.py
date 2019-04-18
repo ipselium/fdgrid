@@ -458,7 +458,7 @@ class ComputationDomains:
             if c[1] == 0:
                 bc[1] = self._bc[1]
             if c[3] == self._nz - 1:
-                bc[3] == self._bc[3]
+                bc[3] = self._bc[3]
             self._update_domains(Subdomain(c, key=self._ndz, bc=''.join(bc),
                                            axis=1, tag='X'))
 

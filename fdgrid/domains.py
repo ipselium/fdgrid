@@ -70,7 +70,7 @@ class Domain:
         # Domain counter
         self._n = 0
 
-    def show(self, fcolor='b', ecolor='y'):
+    def show(self, legend=False, fcolor='b', ecolor='y'):
         """ Represent the Subdomains. """
 
         _, ax = plt.subplots(figsize=(9, 9))
@@ -103,6 +103,9 @@ class Domain:
 
         for sub in self:
             ax.text(*sub.center, f'{sub.key} ({sub.tag})', color='k')
+
+        if legend:
+            print(self)
 
     def keys(self):
         """ Return all keys of Domain instance. """
@@ -246,18 +249,22 @@ class Domain:
         if not tag:
             tag = sub1.tag
 
-        kwargs = {'bc':sub1.bc, 'key':sub1.key, 'axis':sub1.axis, 'tag':tag}
-
         if not self.isjoinable(sub1, sub2, include_split=include_split):
             raise ValueError("domains can't be joined")
 
         if sub1.rx == sub2.rx:
+            bc = self._join_bc(sub1, sub2, axis=1)
+            kwargs = {'bc':bc, 'key':sub1.key, 'axis':sub1.axis, 'tag':tag}
+
             iz = sub1.iz + sub2.iz
             self[sub1.key] = Subdomain([sub1.ix[0], min(iz), sub1.ix[1], max(iz)], **kwargs)
             self.pop(sub2.key)
 
 
         elif sub1.rz == sub2.rz:
+            bc = self._join_bc(sub1, sub2, axis=0)
+            kwargs = {'bc':bc, 'key':sub1.key, 'axis':sub1.axis, 'tag':tag}
+
             ix = sub1.ix + sub2.ix
             self[sub1.key] = Subdomain([min(ix), sub1.iz[0], max(ix), sub1.iz[1]], **kwargs)
             self.pop(sub2.key)
@@ -291,6 +298,26 @@ class Domain:
             return True
 
         return False
+
+    @staticmethod
+    def _join_bc(sub1, sub2, axis=None):
+        """ Determinae bc for the joined Subdomain. """
+
+        if axis == 0:
+            if sub1.axis == 0 and sub1.ix[0] < sub2.ix[0]:
+                return f'{sub1.bc[0]}.{sub2.bc[2]}.'
+
+            if sub1.axis == 0 and sub1.ix[0] > sub2.ix[0]:
+                return f'{sub2.bc[0]}.{sub1.bc[2]}.'
+
+        if axis == 1:
+            if sub1.axis == 1 and sub1.iz[0] < sub2.iz[0]:
+                return f'.{sub1.bc[1]}.{sub2.bc[3]}'
+
+            if sub1.axis == 1 and sub1.iz[0] > sub2.iz[0]:
+                return f'.{sub2.bc[1]}.{sub1.bc[3]}'
+
+        return sub1.bc
 
     def periodic_bc(self, mask, axis):
         """ Arange subdomains to take into account periodic boundary condtions. """
