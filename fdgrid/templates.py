@@ -59,7 +59,7 @@ def testcase2(nx, nz):
     PML = 16
 
     geo = [Subdomain([0, 0, PML, PML], 'RRRR'),
-           Subdomain([0, 30, PML, int(3*nz/4)-5], 'RRRR'),
+           Subdomain([0, PML+23, PML, int(3*nz/4)-5], 'RRRR'),
            Subdomain([30, nz-PML-1, int(nx/2)+10, nz-1], 'RRRR'),
            Subdomain([int(nx/2), 0, int(3*nx/4), PML], 'RRRR'),
            Subdomain([nx-PML-1, int(3*nz/4), nx-1, int(3*nz/4)+10], 'RRRR')]

@@ -36,6 +36,7 @@ Module `cdomain` provides ComputationDomains class
 
 
 import re
+import copy
 import warnings
 import itertools
 import numpy as np
@@ -63,8 +64,10 @@ class ComputationDomains:
         self._stencil = stencil
         self._Npml = Npml
         self._nx, self._nz = shape
-        self.xdomains = Domain(shape)     # For x derivatives
-        self.zdomains = Domain(shape)     # For z derivatives
+        self.dxdomains = Domain(shape)     # For x derivatives
+        self.dzdomains = Domain(shape)     # For z derivatives
+        self.fxdomains = Domain(shape)    # For x filters
+        self.fzdomains = Domain(shape)    # For z filters
         self.adomains = Domain(shape)     # For PMLs
         self.gdomain = Subdomain([0, 0, self._nx-1, self._nz-1],
                                  bc=self._bc, key=0, tag='g')
@@ -90,39 +93,75 @@ class ComputationDomains:
         self._check_subdomains()
 
         # join Subdomains that can be joined
-        self.xdomains.autojoin()
-        self.zdomains.autojoin()
+        self.dxdomains.autojoin()
+        self.dzdomains.autojoin()
 
         # Update Domain objects considering periodic bc
         if re.match(r'P.P.', self._bc):
             mask, _ = self.init_masks(self._shape, self._bc, self._obstacles)
-            self.xdomains.periodic_bc(mask, axis=0)
+            self.dxdomains.periodic_bc(mask, axis=0)
         if re.match(r'.P.P', self._bc):
             mask, _ = self.init_masks(self._shape, self._bc, self._obstacles)
-            self.zdomains.periodic_bc(mask, axis=1)
+            self.dzdomains.periodic_bc(mask, axis=1)
+
+        # Fill filter Subdomains
+        self.fxdomains = copy.deepcopy(self.dxdomains)
+        self.fzdomains = copy.deepcopy(self.dzdomains)
 
         # Check compatibility between obstacles and PML and determine PML Domain
         if 'A' in self._bc:
             self._check_pml()
+            self._fdomain_bc()
             self._built_pml()
 
+        # Check if Subdomain are larger enough for stencil
+        self._check_stencil()
+
         # Sort domains
-        self.xdomains.sort(inplace=True)
-        self.zdomains.sort(inplace=True)
+        self.dxdomains.sort(inplace=True)
+        self.dzdomains.sort(inplace=True)
         self.adomains.sort(inplace=True)
+
+    def _fdomain_bc(self):
+        """ Change all 'A' for 'R' in filter domains. """
+
+        for fdomain in [self.fxdomains, self.fzdomains]:
+            for sub in fdomain:
+                if 'A' in sub.bc:
+                    sub.bc = sub.bc.replace('A', 'R')
+
+    def _check_stencil(self):
+        """ Check if Subdomain are larger enough considering the stencil. """
+
+        msg = "{} too small considering stencil"
+
+        for sub in self.dxdomains:
+            if len(sub.rx) < 2*self._stencil + 1 and sub.bc == "RR":
+                raise CloseObstaclesError(msg.format(sub))
+
+        for sub in self.dzdomains:
+            if len(sub.rz) < 2*self._stencil + 1 and sub.bc == "RR":
+                raise CloseObstaclesError(msg.format(sub))
+
+        for sub in self.adomains:
+            if sub.axis == 0 and len(sub.rz) < 2*self._stencil and re.match(r'.R.R', sub.bc):
+                raise CloseObstaclesError(msg.format(sub))
+
+            if sub.axis == 1 and len(sub.rx) < 2*self._stencil and re.match(r'R.R.', sub.bc):
+                raise CloseObstaclesError(msg.format(sub))
 
     def _built_pml(self):
 
         # Split PML
-        self._split_pml(self.xdomains)
-        self._split_pml(self.zdomains)
+        self._split_pml(self.dxdomains)
+        self._split_pml(self.dzdomains)
 
         # Join PML
-        self._autojoin_pml(self.xdomains)
-        self._autojoin_pml(self.zdomains)
+        self._autojoin_pml(self.dxdomains)
+        self._autojoin_pml(self.dzdomains)
 
         # Construct PML
-        self.adomains = self._make_pml_domain(self.xdomains, self.zdomains)
+        self.adomains = self._make_pml_domain(self.dxdomains, self.dzdomains)
         self.adomains.reset_keys()
 
     def _split_pml(self, tosplit):
@@ -187,12 +226,12 @@ class ComputationDomains:
 
         # Update tag and axis
         for sub in newsubs:
-            if len(sub.rx) == self._Npml and len(sub.rz) == self._Npml:
+            if sub.tag == 'Ac':
                 sub.tag = 'A'
                 sub.axis = 2
-            elif len(sub.rx) == self._Npml:
+            elif len(sub.rx) == self._Npml and (sub.ix[0] == 0 or sub.ix[1] == self._nx-1):
                 sub.axis = 0
-            elif len(sub.rz) == self._Npml:
+            elif len(sub.rz) == self._Npml and (sub.iz[0] == 0 or sub.iz[1] == self._nz-1):
                 sub.axis = 1
 
 
@@ -461,11 +500,11 @@ class ComputationDomains:
 
         if sub.axis == 0:
             self._xmask[sub.sx, sub.sz] = val
-            self.xdomains.append(sub)
+            self.dxdomains.append(sub)
 
         elif sub.axis == 1:
             self._zmask[sub.sx, sub.sz] = val
-            self.zdomains.append(sub)
+            self.dzdomains.append(sub)
 
     @property
     def is_domain_complete(self):
@@ -519,18 +558,24 @@ class ComputationDomains:
     @property
     def listing(self):
         """ Returns a tuple containing the domains along x and along z. """
-        return self.xdomains, self.zdomains
+        return self.dxdomains, self.dzdomains
 
     @property
-    def sdomains(self):
-        """ Returns the smallest domain. """
-        return self.xdomains if len(self.xdomains) < len(self.zdomains) else self.zdomains
+    def dsdomains(self):
+        """ Returns the smallest domain amond derivative domains. """
+        return self.dxdomains if len(self.dxdomains) < len(self.dzdomains) else self.dzdomains
+
+    @property
+    def fsdomains(self):
+        """ Returns the smallest domain among filter domains. """
+        return self.fxdomains if len(self.fxdomains) < len(self.fzdomains) else self.fzdomains
+
 
     def __repr__(self):
         r = '*** x-domains ***\n'
-        r += repr(self.xdomains)
+        r += repr(self.dxdomains)
         r += '\n*** z-domains ***\n'
-        r += repr(self.zdomains)
+        r += repr(self.dzdomains)
         if len(self.adomains) != 0:
             r += '\n*** PMLs ***\n'
             r += repr(self.adomains)

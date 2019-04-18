@@ -528,8 +528,15 @@ class Subdomain:
 
     @property
     def axname(self):
-        """ Returns "x" or "z" whether axis is 0 or 1. """
-        return "x" if self.axis == 0 else "z" if self.axis == 1 else None
+        """ Returns "x" or "z" whether axis is 0 or 1. Return 2 if both. """
+
+        if self.axis == 0:
+            return 'x'
+        if self.axis == 1:
+            return 'z'
+        if self.axis == 2:
+            return 'xz'
+        return None
 
     @property
     def center(self):

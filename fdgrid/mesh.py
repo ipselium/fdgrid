@@ -108,12 +108,19 @@ class Mesh:
 
         self.domain = ComputationDomains((self.nx, self.nz), self.obstacles,
                                          self.bc, self.stencil, self.Npml)
-        self.xdomains = self.domain.xdomains
-        self.zdomains = self.domain.zdomains
+
+        self.dxdomains = self.domain.dxdomains
+        self.dzdomains = self.domain.dzdomains
+        self.dsdomains = self.domain.dsdomains
+        self.dmdomains = self.dxdomains + self.dzdomains
+
+        self.fxdomains = self.domain.fxdomains
+        self.fzdomains = self.domain.fzdomains
+        self.fsdomains = self.domain.fsdomains
+        self.fmdomains = self.fxdomains + self.fzdomains
+
         self.adomains = self.domain.adomains
-        self.sdomains = self.domain.sdomains
         self.gdomain = self.domain.gdomain
-        self.mdomains = self.xdomains + self.zdomains
 
     def _check_bc(self):
 
@@ -165,9 +172,9 @@ class Mesh:
 
         # Subdomains
         for tag, color in zip(['X', 'W', 'A'], ['b', 'r', 'g']):
-            self._plot_subdomains(axes[0], [s for s in self.xdomains if s.tag == tag],
+            self._plot_subdomains(axes[0], [s for s in self.dxdomains if s.tag == tag],
                                   fcolor='y', ecolor=color, legend=legend)
-            self._plot_subdomains(axes[1], [s for s in self.zdomains if s.tag == tag],
+            self._plot_subdomains(axes[1], [s for s in self.dzdomains if s.tag == tag],
                                   fcolor='y', ecolor=color, legend=legend)
             self._plot_subdomains(axes[0], [s for s in self.adomains if s.tag == tag],
                                   fcolor='y', ecolor=color, legend=legend)
