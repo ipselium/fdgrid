@@ -40,6 +40,20 @@ from .utils import down_sample
 from .cdomain import ComputationDomains
 
 
+def plot_obstacles(x, z, ax, obstacles, facecolor='k', edgecolor='r'):
+    """ plot all obstacles in ax. obstacle is a list of all coordinates. """
+
+    for obs in obstacles:
+        rect = patches.Rectangle((x[obs[0]], z[obs[1]]),
+                                 x[obs[2]] - x[obs[0]],
+                                 z[obs[3]] - z[obs[1]],
+                                 linewidth=3,
+                                 edgecolor=edgecolor,
+                                 facecolor=facecolor,
+                                 alpha=0.5)
+        ax.add_patch(rect)
+
+
 class BoundaryConditionError(Exception):
     """ Error due to incompatible boundary conditions """
     pass
@@ -222,20 +236,6 @@ class Mesh:
             if legend and sub.tag in ['X', 'A', 'W']:
                 ax.text(self.x[sub.center[0]]-self.dx*len(sub.tag)*6,
                         self.z[sub.center[1]]-self.dz*3, sub.key, color=ecolor)
-
-    @staticmethod
-    def plot_obstacles(x, z, ax, obstacles, facecolor='k', edgecolor='r'):
-        """ plot all obstacles in ax. obstacle is a list of all coordinates. """
-
-        for obs in obstacles:
-            rect = patches.Rectangle((x[obs[0]], z[obs[1]]),
-                                     x[obs[2]] - x[obs[0]],
-                                     z[obs[3]] - z[obs[1]],
-                                     linewidth=3,
-                                     edgecolor=edgecolor,
-                                     facecolor=facecolor,
-                                     alpha=0.5)
-            ax.add_patch(rect)
 
     def plot_grid(self, N=4):
         """ Grid representation """
