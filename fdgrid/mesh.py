@@ -202,7 +202,6 @@ class Mesh:
             print(self.domain)
 
         plt.tight_layout()
-        plt.show()
 
     def _show_bc(self, axes, offset):
         """ Show text indicating each of the 4 bc of the domain. """
@@ -324,11 +323,14 @@ class Mesh:
                         ax.axvspan(j[0], j[1], facecolor='k', alpha=0.5)
 
         plt.tight_layout()
-        plt.show()
 
     def get_obstacles(self):
         """ Get a list of the coordinates of all obstacles. """
         return [sub.xz for sub in self.obstacles]
+
+    def show_figures(self):
+        """ Show all figures. """
+        plt.show()
 
     def __str__(self):
         s = 'Cartesian {}x{} points grid with {} boundary conditions:\n\n'
