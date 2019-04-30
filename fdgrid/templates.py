@@ -29,12 +29,49 @@ Examples of obstacle arangements.
 """
 
 
+import numpy as np
 from .domains import Domain, Subdomain
 
 
 class TemplateConstructionError(Exception):
     """ Bad value for grid template """
     pass
+
+
+def curv(xn, zn):
+    """ Curvlinear coordinates : test case 1. Physical == numerical """
+
+    return xn.copy(), zn.copy()
+
+
+def curvx(xn, zn):
+    """ Curvlinear coordinates : test case 2 following x """
+
+    zp = zn.copy()
+    xp = xn \
+        + np.linspace(0.5, 0, xn.shape[1])*(np.sin(2*np.pi*zp/(zp.max()/10))/5000 \
+                                            - 10*zp**2)
+    return xp, zp
+
+
+def curvz(xn, zn):
+    """ Curvlinear coordinates : test case 2 following z """
+
+    xp = xn.copy()
+    zp = zn \
+        + np.linspace(0.5, 0, zn.shape[1])*(np.sin(2*np.pi*xp/(xp.max()/10))/5000 \
+                                            - 10*xp**2)
+    return xp, zp
+
+
+def curvxz(xn, zn):
+    """ Curvlinear coordinates : test case 2 following x and z : circle """
+
+    R = 1.
+    xp = (zn + R)*np.sin(xn/R)
+    zp = (zn + R)*np.cos(xn/R)
+
+    return xp, zp
 
 
 def testcase1(nx, nz):
@@ -189,7 +226,7 @@ def square(nx, nz, size_percent=20):
     return Domain((nx, nz), data=geo)
 
 
-def street(nx, nz, street_size=50):
+def street(nx, nz):
     """ Street with building facades. """
 
     geo = [Subdomain([0, 0, int(0.7*nx), int(nz*0.25)], 'RRRR'),

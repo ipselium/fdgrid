@@ -35,23 +35,55 @@ import re
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import patches, ticker
+from ofdlib2 import derivation
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from .utils import down_sample
 from .cdomain import ComputationDomains
+from .domains import Subdomain
+from .templates import curv
 
 
-def plot_obstacles(x, z, ax, obstacles, facecolor='k', edgecolor='r'):
+def plot_obstacles(x, z, ax, obstacles, facecolor='k', edgecolor='r', curvilinear=False):
     """ plot all obstacles in ax. obstacle is a list of all coordinates. """
 
     for obs in obstacles:
-        rect = patches.Rectangle((x[obs[0]], z[obs[1]]),
-                                 x[obs[2]] - x[obs[0]],
-                                 z[obs[3]] - z[obs[1]],
-                                 linewidth=3,
-                                 edgecolor=edgecolor,
-                                 facecolor=facecolor,
-                                 alpha=0.5)
-        ax.add_patch(rect)
+
+        if curvilinear and isinstance(obs, Subdomain):
+            for i in range(2):
+                ax.plot(x[obs.rx, obs.iz[i]], z[obs.rx, obs.iz[i]],
+                        color=edgecolor, linewidth=3)
+                ax.plot(x[obs.ix[i], obs.rz], z[obs.ix[i], obs.rz],
+                        color=edgecolor, linewidth=3)
+
+        elif curvilinear and isinstance(obs, np.ndarray):
+            ax.plot(x[obs[0]:obs[2]+1, obs[1]], z[obs[0]:obs[2]+1, obs[1]],
+                    color=edgecolor, linewidth=3)
+            ax.plot(x[obs[0]:obs[2]+1, obs[3]], z[obs[0]:obs[2]+1, obs[3]],
+                    color=edgecolor, linewidth=3)
+
+            ax.plot(x[obs[0], obs[1]:obs[3]+1], z[obs[0], obs[1]:obs[3]+1],
+                    color=edgecolor, linewidth=3)
+            ax.plot(x[obs[2], obs[1]:obs[3]+1], z[obs[2], obs[1]:obs[3]+1],
+                    color=edgecolor, linewidth=3)
+
+        else:
+            if isinstance(obs, np.ndarray):
+                rect = patches.Rectangle((x[obs[0]], z[obs[1]]),
+                                         x[obs[2]] - x[obs[0]],
+                                         z[obs[3]] - z[obs[1]],
+                                         linewidth=3,
+                                         edgecolor=edgecolor,
+                                         facecolor=facecolor,
+                                         alpha=0.5)
+            elif isinstance(obs, Subdomain):
+                rect = patches.Rectangle((x[obs.ix[0]], z[obs.iz[0]]),
+                                         x[obs.ix[1]] - x[obs.ix[0]],
+                                         z[obs.iz[1]] - z[obs.iz[0]],
+                                         linewidth=3,
+                                         edgecolor=edgecolor,
+                                         facecolor=facecolor,
+                                         alpha=0.5)
+            ax.add_patch(rect)
 
 
 class BoundaryConditionError(Exception):
@@ -91,9 +123,6 @@ class Mesh:
         self.bc = bc.upper()
         self._check_bc()
         self._check_grid()
-
-        self.one_dx = 1/self.dx
-        self.one_dz = 1/self.dz
 
         self._make_grid()
         self._find_subdomains()
@@ -195,10 +224,8 @@ class Mesh:
             self._plot_subdomains(axes[1], [s for s in self.adomains if s.tag == tag],
                                   fcolor='y', ecolor=color, legend=legend)
 
-
         if legend:
             self._show_bc(axes, offset)
-
             print(self.domain)
 
         plt.tight_layout()
@@ -328,7 +355,8 @@ class Mesh:
         """ Get a list of the coordinates of all obstacles. """
         return [sub.xz for sub in self.obstacles]
 
-    def show_figures(self):
+    @staticmethod
+    def show_figures():
         """ Show all figures. """
         plt.show()
 
@@ -464,7 +492,6 @@ class AdaptativeMesh(Mesh):
 
         return u, du
 
-
     def __str__(self):
         s = 'Adaptative cartesian {}x{} points grid with {} boundary conditions:\n\n'
         s += '\t* Spatial step  : {}\n'.format((self.dx, self.dz))
@@ -481,12 +508,87 @@ class CurvilinearMesh(Mesh):
     """ Curvilinear Mesh """
 
     def __init__(self, shape, step, origin=(0, 0),
-                 bc='RRRR', obstacles=None, Npml=15, stencil=11):
+                 bc='RRRR', obstacles=None, Npml=15, stencil=11, fcurvxz=curv):
 
-        super().__init__(shape, step, origin=(0, 0), bc='RRRR',
-                         obstacles=None, Npml=15, stencil=11)
+        if not fcurvxz:
+            self.fcurvxz = curv
+        else:
+            self.fcurvxz = fcurvxz
 
-        raise NotImplementedError('Soon it will be !')
+        super().__init__(shape, step, origin, bc, obstacles, Npml, stencil)
+
+    @staticmethod
+    def _pmesh(ax, x, z, step=8):
+        """ Plot grid lines. """
+
+        nbx = x.shape[0]
+        nbz = x.shape[1]
+        for i in np.arange(0, nbz, int(nbx/step)):
+            ax.plot(x[:, i], z[:, i], 'k')
+
+        ax.plot(x[:, -1], z[:, -1], 'k')
+
+        for i in np.arange(0, nbx, int(nbz/step)):
+            ax.plot(x[i, :], z[i, :], 'k')
+
+        ax.plot(x[-1, :], z[-1, :], 'k')
+
+    def plot_curvi(self):
+        """ Plot physical and numerical domains. """
+
+        _, axes = plt.subplots(ncols=2, figsize=(9, 3))
+        self._pmesh(axes[0], self.xn, self.zn)
+        self._pmesh(axes[1], self.xp, self.zp)
+        axes[0].set(title='Numerical Domain')
+        axes[1].set(title='Physical Domain')
+
+        plot_obstacles(self.x, self.z, axes[0], self.obstacles,
+                       edgecolor='k')
+        plot_obstacles(self.xp, self.zp, axes[1], self.obstacles,
+                       edgecolor='k', curvilinear=True)
+
+        axes[0].set_aspect('equal')
+        axes[1].set_aspect('equal')
+        plt.tight_layout()
+        plt.show()
+
+    def _make_grid(self):
+
+        # Coordinates
+        self.x = (np.arange(self.nx, dtype=float) - self.ix0)*self.dx
+        self.z = (np.arange(self.nz, dtype=float) - self.iz0)*self.dz
+
+        # Numerical coordinates
+        self.xn, self.zn = np.meshgrid(self.x, self.z)
+        self.xn = np.ascontiguousarray(self.xn.T)
+        self.zn = np.ascontiguousarray(self.zn.T)
+
+        # Pysical coordinates
+        self.xp, self.zp = self.fcurvxz(self.xn, self.zn)
+
+        # Inverse Jacobian matrix coefficients
+        du = derivation.du11(np.arange(self.nx, dtype=float),
+                             np.arange(self.nz, dtype=float), add=False)
+
+        dxp_dxn = du.dudx(self.xp)/du.dudx(self.xn)
+        dzp_dxn = du.dudx(self.zp)/du.dudx(self.xn)
+        dzp_dzn = du.dudz(self.zp)/du.dudz(self.zn)
+        dxp_dzn = du.dudz(self.xp)/du.dudz(self.zn)
+
+        # Jacobian matrix coefficients
+        self.J = 1/(dxp_dxn*dzp_dzn - dxp_dzn*dzp_dxn)
+        self.dxn_dxp = self.J*dzp_dzn
+        self.dzn_dzp = self.J*dxp_dxn
+        self.dxn_dzp = -self.J*dxp_dzn
+        self.dzn_dxp = -self.J*dzp_dxn
+
+        # Check GCL
+        gcl_x = du.dudx(self.dxn_dxp/self.J) + du.dudz(self.dzn_dxp/self.J)
+        gcl_z = du.dudx(self.dxn_dzp/self.J) + du.dudz(self.dzn_dzp/self.J)
+        if np.abs(gcl_x).max() > 1e-8 or np.abs(gcl_z).max() > 1e-8:
+            print('GCL (x) : ', np.abs(gcl_x).max())
+            print('GCL (z) : ', np.abs(gcl_z).max())
+            raise ValueError('Geometric Conservation Laws not verified')
 
 
 if __name__ == "__main__":
