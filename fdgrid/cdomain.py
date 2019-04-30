@@ -28,8 +28,9 @@
 """
 -----------
 
-Module `cdomain` provides ComputationDomains class
+Module `cdomain` provides `ComputationDomains` class.
 
+The goal is to divide the grid into Subdomain objects used by nsfds2
 
 @author: Cyril Desjouy
 """
@@ -48,13 +49,29 @@ from .utils import merge_bc
 
 
 class CloseObstaclesError(Exception):
-    """ Error due to obstacles too close. """
+    """ Error due to obstacles too close from another one or from grid boundary. """
 
     msg = "{} too close to another subdomain for a {} points stencil."
 
 
 class ComputationDomains:
-    """ Divide computation domain in several subdomains based on obstacle in presence. """
+    """ Divide computation domain in several Subdomains based on obstacles in presence.
+
+    Parameters
+    ----------
+
+    shape : Size of the domain. Must be a 2 elements tuple of int
+    obstacles : Domain object gathering all obstacles (Subdomain objects)
+    bc : Boundary conditions. Must be a string of 4 chacracter among 'A', 'R', 'Z' and 'P'
+    stencil : Int. Size of the finite difference stencil that will be used by nsfds2
+    Npml : Int. Number of points of the absorbing area (if 'A' is in bc). Optional
+
+    Raises
+    -----
+
+    CloseObstaclesError: when obstacles are too close from each other or from the grid boundary
+
+    """
 
     def __init__(self, shape, obstacles, bc, stencil, Npml=15):
 

@@ -97,15 +97,18 @@ class GridError(Exception):
 
 
 class Mesh:
-    """ Mesh Class : Construct meshgrid for finite differences
+    """ Mesh Class : Construct grid with constant spatial steps
 
-    bc : 'TPLR' (left, bottom, right, top)
+    Parameters
+    ----------
 
-         R : Rigid
-         P : Periodic
-         A : PML
-         Z : Impedance
-
+    shape : Size of the domain. Must be a 2 elements tuple of int
+    step : Spatial steps. Must be a 2 elements tuple of float
+    origin : Origin of the grid. Must be a 2 elements tuple of int. Optional
+    bc : Boundary conditions. Must be a string of 4 chacracter among 'A', 'R', 'Z' and 'P'
+    obstacles : Domain object. Set of obstacles to consider
+    Npml : Int. Number of points of the absorbing area (if 'A' is in bc). Optional
+    stencil : Int. Size of the finite difference stencil that will be used by nsfds2
     """
 
     def __init__(self, shape, step, origin=(0, 0),
@@ -374,15 +377,18 @@ class Mesh:
 
 
 class AdaptativeMesh(Mesh):
-    """ Mesh Class : Construct meshgrid for finite differences with adaptative grid
+    """ AdaptativeMesh Class : Construct grid with adaptative spatial steps
 
-    bc : 'TPLR' (left, bottom, right, top)
+    Parameters
+    ----------
 
-         R : Rigid
-         P : Periodic
-         A : PML
-         Z : Impedance
-
+    shape : Size of the domain. Must be a 2 elements tuple of int
+    step : Spatial steps. Must be a 2 elements tuple of float
+    origin : Origin of the grid. Must be a 2 elements tuple of int. Optional
+    bc : Boundary conditions. Must be a string of 4 chacracter among 'A', 'R', 'Z' and 'P'
+    obstacles : Domain object. Set of obstacles to consider
+    Npml : Int. Number of points of the absorbing area (if 'A' is in bc). Optional
+    stencil : Int. Size of the finite difference stencil that will be used by nsfds2
     """
 
     def _make_grid(self):
@@ -505,7 +511,21 @@ class AdaptativeMesh(Mesh):
 
 
 class CurvilinearMesh(Mesh):
-    """ Curvilinear Mesh """
+    """ CurvilinearMesh Class : Construct grid using curvilinear coordinates
+
+    Parameters
+    ----------
+
+    shape : Size of the domain. Must be a 2 elements tuple of int
+    step : Spatial steps. Must be a 2 elements tuple of float
+    origin : Origin of the grid. Must be a 2 elements tuple of int. Optional
+    bc : Boundary conditions. Must be a string of 4 chacracter among 'A', 'R', 'Z' and 'P'
+    obstacles : Domain object. Set of obstacles to consider
+    Npml : Int. Number of points of the absorbing area (if 'A' is in bc). Optional
+    stencil : Int. Size of the finite difference stencil that will be used by nsfds2
+    fcurvxz : function taking as input arguments the numerical coordinates (xn/yn)
+              and returning the physical coordinates (xp/zp)
+    """
 
     def __init__(self, shape, step, origin=(0, 0),
                  bc='RRRR', obstacles=None, Npml=15, stencil=11, fcurvxz=curv):

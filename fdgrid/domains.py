@@ -26,7 +26,7 @@
 """
 -----------
 
-Submodule `domains` provides two classes:
+Module `domains` provides two classes:
 
     * Subdomain : dataclass for subdivisions of the computational domain
     * Domain : Container for Subdomain objects
@@ -51,7 +51,15 @@ class CloseObstaclesError(Exception):
 
 
 class Domain:
-    """ Group of Subdomain objects. """
+    """ Set of Subdomain objects.
+
+    Parameters
+    ----------
+
+    shape : Size of the domain. Must be a 2 elements tuple
+    data : list of Subdomain objects
+
+    """
 
     def __init__(self, shape, data=None):
 
@@ -537,7 +545,18 @@ class Domain:
 
 @dataclass
 class Subdomain:
-    """ Subdomain of the computation domain. """
+    """ Subdomain of the computation domain.
+
+    Parameters
+    ----------
+
+    xz : Coordinates of the Subdomain : left, bottom, right, top
+    bc : Boundary conditions. Must be a string of 4 chacracter among 'A', 'R', 'Z' and 'P'
+    key : Key of the subdomain. Optional
+    axis : 0 or 1. The direction of the subdomain if relevant. Optional.
+    tag : str. The type of Subdomain. Optional
+    """
+
     xz: tuple
     bc: str = '....'
     key: str = ''

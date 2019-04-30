@@ -23,14 +23,14 @@
 """
 -----------
 
-Some tools.
+Some tools for fdgrid.
 
 @author: Cyril Desjouy
 """
 
 import re
 import numpy as np
-import scipy.ndimage as ndimage
+import scipy.ndimage as ndi
 
 
 def sort(l):
@@ -39,8 +39,8 @@ def sort(l):
     From https://stackoverflow.com/questions/2669059/how-to-sort-alpha-numeric-set-in-python
     """
     convert = lambda text: int(text) if text.isdigit() else text
-    alphanum_key = lambda key: [ convert(c) for c in re.split('([0-9]+)', key) ]
-    return sorted(l, key = alphanum_key)
+    alphanum_key = lambda key: [convert(c) for c in re.split('([0-9]+)', key)]
+    return sorted(l, key=alphanum_key)
 
 
 def is_ordered(lst):
@@ -56,17 +56,17 @@ def find_areas(array, val=0):
 
         [(xmin, ymin, xmax, ymax), (...)]
     """
-    regions, n = ndimage.label(array == val)
+    regions, n = ndi.label(array == val)
     indexes = []
     for i in range(1, n+1):
         c = np.argwhere(regions == i)
-        c_check = remove_dups(split_discontinuous(c[:,1]))
+        c_check = remove_dups(split_discontinuous(c[:, 1]))
         if len(c_check) == 1:
             indexes.append(tuple(c[0]) + tuple(c[-1]))
         else:
-            idz = remove_dups(split_discontinuous(c[:,1]))
+            idz = remove_dups(split_discontinuous(c[:, 1]))
             idz_size = [i[1]-i[0]+1 for i in idz]
-            idx = [(i, list(c[:,0]).count(i)) for i in set(c[:,0])]
+            idx = [(i, list(c[:, 0]).count(i)) for i in set(c[:, 0])]
             idx = [[i[0] for i in idx if i[1] == iz] for iz in idz_size]
             idx = [(ix[0], ix[-1]) for ix in idx]
             coord = [(i[0], j[0], i[1], j[1]) for i, j in zip(idx, idz)]
@@ -78,8 +78,8 @@ def find_areas(array, val=0):
 def remove_singles(array, size=1, oldval=-2, newval=-1):
     """ Replace isolated points of oldval to newval in array.  """
     mask = (array == oldval)
-    regions, n = ndimage.label(mask)
-    sizes = np.array(ndimage.sum(mask, regions, range(n + 1)))
+    regions, n = ndi.label(mask)
+    sizes = np.array(ndi.sum(mask, regions, range(n + 1)))
     mask = (sizes == size)[regions]
     array[mask] = newval
 
@@ -100,6 +100,7 @@ def remove_dups(lst):
 
 
 def merge_bc(bc1, bc2):
+    """ Merge boundary conditions. """
     bc = ''
     for s1, s2 in zip(bc1, bc2):
         if s1 == '.':

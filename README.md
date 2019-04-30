@@ -7,37 +7,37 @@
 ## Introducing FDGrid
 
 ***FDGrid*** provides some tools to create **regular**, **adaptative** or
-**curvilinear** 2D grids. ***FDGrid*** has been designed to work with nsfds2 but can also be used alone. ***FDGrid*** provides tool to :
+**curvilinear** 2D grids. ***FDGrid*** has been designed to work with nsfds2 but can also be used alone. ***FDGrid*** provides tool to:
 
 * Generate 2D meshes : x and z coordinates
 * Subdivide the grid into Subdomain objects used by nsfds2
 
-***FDGrid*** provides 3 main types of objects to create meshes :
+***FDGrid*** provides 3 main types of objects to create meshes:
 
-* `Mesh()` : Create a regular mesh
-
-
-* `AdaptativeMesh()` : Create a mesh that is adapted around obstacles and close to the boundaries
+* `Mesh()`: Create a regular mesh
 
 
-* `CurvilinearMesh()` : Create a mesh using curvilinear coordinates
+* `AdaptativeMesh()`: Create a mesh that is adapted around obstacles and close to the boundaries
 
-***FDGrid*** provides two main objects to creates computation domains and/or sets of obstacles :
+
+* `CurvilinearMesh()`: Create a mesh using curvilinear coordinates
+
+***FDGrid*** provides two main objects to create computation domains and/or sets of obstacles:
 
 * `Domain()` : Container for `Subdomain` objects
 
 * `Subdomain()` : Subdivision of the grid
 
 
-## Requirement and installation
+## Requirements and installation
 
 ### Requirements
 
-* python 3.7
-* matplotlib
-* numpy
-* scipy
-* ofdlib2
+* python > 3.7
+* matplotlib > 3.0
+* numpy > 1.1
+* scipy > 1.1
+* ofdlib2 > 0.8
 
 ### Installation
 
