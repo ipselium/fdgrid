@@ -23,8 +23,6 @@
 # pylint: disable=too-many-instance-attributes
 # pylint: disable=len-as-condition
 # pylint: disable=pointless-statement
-
-
 """
 -----------
 
@@ -43,15 +41,10 @@ import itertools
 import numpy as np
 import matplotlib.pyplot as plt
 from .domains import Domain, Subdomain
+from .exceptions import CloseObstaclesError
 from .utils import remove_dups, remove_singles
 from .utils import split_discontinuous, find_areas
 from .utils import merge_bc
-
-
-class CloseObstaclesError(Exception):
-    """ Error due to obstacles too close from another one or from grid boundary. """
-
-    msg = "{} too close to another subdomain for a {} points stencil."
 
 
 class ComputationDomains:
@@ -587,20 +580,6 @@ class ComputationDomains:
         """ Returns the smallest domain among filter domains. """
         return self.fxdomains if len(self.fxdomains) < len(self.fzdomains) else self.fzdomains
 
-
-    def __repr__(self):
-        r = '*** x-domains ***\n'
-        r += repr(self.dxdomains)
-        r += '\n*** z-domains ***\n'
-        r += repr(self.dzdomains)
-        if len(self.adomains) != 0:
-            r += '\n*** PMLs ***\n'
-            r += repr(self.adomains)
-        return r
-
-    def __str__(self):
-        return self.__repr__()
-
     def show_missings(self):
         """ Plot missing subdomains. """
         fig, ax = plt.subplots(1, 2, figsize=(9, 3))
@@ -677,6 +656,19 @@ class ComputationDomains:
         remove_singles(zmask)
 
         return xmask, zmask
+
+    def __repr__(self):
+        r = '*** x-domains ***\n'
+        r += repr(self.dxdomains)
+        r += '\n*** z-domains ***\n'
+        r += repr(self.dzdomains)
+        if len(self.adomains) != 0:
+            r += '\n*** PMLs ***\n'
+            r += repr(self.adomains)
+        return r
+
+    def __str__(self):
+        return self.__repr__()
 
 
 if __name__ == "__main__":

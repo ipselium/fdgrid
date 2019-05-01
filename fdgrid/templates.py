@@ -20,6 +20,7 @@
 #
 #
 # Creation Date : 2019-02-13 - 10:58:09
+#pylint: disable=too-many-locals
 """
 -----------
 
@@ -172,8 +173,9 @@ def helmholtz_double(nx, nz, cavity=(0.2, 0.2), neck=(0.1, 0.1)):
            Subdomain([neck_ix+xneck_wdth, xcvty_hght, nx-1, xcvty_hght+xneck_hght], 'RRRR'),
            Subdomain([nx-zcvty_hght, xcvty_hght+xneck_hght, nx-1, cvty_iz], 'RRRR'),
            Subdomain([nx-zcvty_hght, cvty_iz+zcvty_wdth, nx-1, nz-1], 'RRRR'),
-           Subdomain([nx-zcvty_hght-zneck_hght, xcvty_hght+xneck_hght, nx-zcvty_hght , neck_iz], 'RRRR'),
-           Subdomain([nx-zcvty_hght-zneck_hght, neck_iz+zneck_wdth, nx-zcvty_hght, nz-1], 'RRRR')
+           Subdomain([nx-zcvty_hght-zneck_hght, neck_iz+zneck_wdth, nx-zcvty_hght, nz-1], 'RRRR'),
+           Subdomain([nx-zcvty_hght-zneck_hght, xcvty_hght+xneck_hght,
+                      nx-zcvty_hght, neck_iz], 'RRRR')
           ]
 
     return Domain((nx, nz), data=geo)

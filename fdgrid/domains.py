@@ -22,6 +22,7 @@
 # Creation Date : 2019-02-13 - 07:54:54
 #
 # pylint: disable=too-many-public-methods
+# pylint: disable=too-many-locals
 # pylint: disable=attribute-defined-outside-init
 """
 -----------
@@ -30,6 +31,8 @@ Module `domains` provides two classes:
 
     * Subdomain : dataclass for subdivisions of the computational domain
     * Domain : Container for Subdomain objects
+
+It also provides the fonction `plot_subdomain`.
 
 @author: Cyril Desjouy
 """
@@ -44,10 +47,72 @@ from dataclasses import dataclass
 from .utils import split_discontinuous, sort
 
 
-class CloseObstaclesError(Exception):
-    """ Error due to obstacles too close. """
+def plot_subdomains(ax, x, z, domain, legend=False,
+                    facecolor='k', edgecolor='k', alpha=0.5, curvilinear=False):
+    """ Plot subdomain in ax.
 
-    msg = "{} too close to another subdomain for a {} points stencil."
+    Obstacle can be a list of coordinate lists or a Domain object.
+
+    Parameters
+    ----------
+
+    x, z : 1D arrays. x and z coordinates
+    ax : Matplotlib axe where the subdomains will be plotted.
+    subdomains : List of coordinates or Domain object.
+    facecolor : Fill color. Optional.
+    edgecolor ; Line color. Optional.
+    curvilinear : Boolean. Optional.
+    """
+
+    for sub in domain:
+
+        if curvilinear and isinstance(sub, Subdomain):
+            for i in range(2):
+                ax.plot(x[sub.rx, sub.iz[i]], z[sub.rx, sub.iz[i]],
+                        color=edgecolor, linewidth=3)
+                ax.plot(x[sub.ix[i], sub.rz], z[sub.ix[i], sub.rz],
+                        color=edgecolor, linewidth=3)
+
+            ax.fill_between(x[sub.rx, sub.iz[0]],
+                            z[sub.rx, sub.iz[0]],
+                            z[sub.rx, sub.iz[1]], color=facecolor, alpha=alpha)
+
+        elif curvilinear and isinstance(sub, (np.ndarray, list)):
+            ax.plot(x[sub[0], sub[1]:sub[3]+1], z[sub[0], sub[1]:sub[3]+1],
+                    color=edgecolor, linewidth=3)
+            ax.plot(x[sub[2], sub[1]:sub[3]+1], z[sub[2], sub[1]:sub[3]+1],
+                    color=edgecolor, linewidth=3)
+
+            ax.plot(x[sub[0]:sub[2]+1, sub[1]], z[sub[0]:sub[2]+1, sub[1]],
+                    color=edgecolor, linewidth=3)
+            ax.plot(x[sub[0]:sub[2]+1, sub[3]], z[sub[0]:sub[2]+1, sub[3]],
+                    color=edgecolor, linewidth=3)
+
+        elif isinstance(sub, (np.ndarray, list, Subdomain)):
+            if isinstance(sub, (np.ndarray, list)):
+                origin = (x[sub[0]], z[sub[1]])
+                width = x[sub[2]] - x[sub[0]]
+                height = z[sub[3]] - z[sub[1]]
+            elif isinstance(sub, Subdomain):
+                origin = (x[sub.ix[0]], z[sub.iz[0]])
+                width = x[sub.ix[1]] - x[sub.ix[0]]
+                height = z[sub.iz[1]] - z[sub.iz[0]]
+
+            rect = patches.Rectangle(origin, width, height, linewidth=3,
+                                     edgecolor=edgecolor, facecolor=facecolor,
+                                     alpha=alpha)
+            ax.add_patch(rect)
+
+        else:
+            msg = 'Each element of subtacle must be a list, array, or Subdomain object'
+            raise ValueError(msg)
+
+        if legend and isinstance(sub, Subdomain):
+            if sub.tag in ['X', 'A', 'W']:
+                dx = x[sub.center[0]] - x[sub.center[0] - 1]
+                dz = x[sub.center[1]] - x[sub.center[1] - 1]
+                ax.text(x[sub.center[0]]-dx*len(sub.tag)*6,
+                        z[sub.center[1]]-dz*3, sub.key, color=edgecolor)
 
 
 class Domain:
