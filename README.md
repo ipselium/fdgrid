@@ -91,15 +91,47 @@ ix0, iz0 = 0, 0		# grid origin
 bc = 'RRRR' 		# Boundary conditions : left, bottom, right, top.
 			# Can be (R)igid, (A)bsorbing, (P)eriodic, (Z)impedance
 
-# Set up obstacles in the grid
+# Set up obstacles in the grid with a template
 obstacles = templates.testcase1(*shape)
 
 # Generate AdaptativeMesh object
-mesh1 = mesh.AdaptativeMesh(shape, steps, (ix0, iz0), obstacles=obstacles, bc=bc)
+msh = mesh.AdaptativeMesh(shape, steps, (ix0, iz0), obstacles=obstacles, bc=bc)
 
 # Show
-mesh1.plot_grid(N=8)
+msh.plot_grid(N=8)
 ```
 
 ![adaptative mesh](https://github.com/ipselium/fdgrid/blob/master/docs/adaptative.png)
+
+
+### Simple curvilinear mesh example
+
+```python
+from fdgrid import mesh, templates
+import numpy as np
+
+shape = (256, 256)       # Dimensions of the grid
+steps = (1e-4, 1e-4)     # grid steps
+origin = (128, 0)        # grid origin
+bc = 'RRRR'              # Boundary conditions : left, bottom, right, top.
+                         # Can be (R)igid, (A)bsorbing, (P)eriodic, (Z)impedance
+
+# Set up obstacles in the grid with a template
+obstacles = templates.helmholtz_double(nx, nz)
+
+# Setup curvilinear transformation
+def curv(xn, zn):
+    f = 5*dx
+    xp = xn.copy()
+    zp = zn + np.exp(-np.linspace(0, 10, zn.shape[1]))*np.sin(2*np.pi*f*xn/xn.max()/2)
+    return xp, zp
+
+# Generate CurvilinearMesh object
+msh = mesh.CurvilinearMesh(shape, steps, origin, obstacles=obstacles, bc=bc, fcurvxz=curv)
+
+# Show physical grid
+msh.plot_physical()
+```
+
+![curvilinear mesh](https://github.com/ipselium/fdgrid/blob/master/docs/curvilinear.png)
 
