@@ -34,17 +34,15 @@ The goal is to divide the grid into Subdomain objects used by nsfds2
 """
 
 
-import re
-import copy
-import warnings
-import itertools
-import numpy as np
-import matplotlib.pyplot as plt
-from .domains import Domain, Subdomain
-from .exceptions import CloseObstaclesError
-from .utils import remove_dups, remove_singles
-from .utils import split_discontinuous, find_areas
-from .utils import merge_bc
+import re as _re
+import copy as _copy
+import warnings as _warnings
+import itertools as _itertools
+import numpy as _np
+import matplotlib.pyplot as _plt
+from fdgrid import _exceptions
+from fdgrid import utils as _utils
+from fdgrid.domains import Domain, Subdomain
 
 
 class ComputationDomains:
@@ -107,16 +105,16 @@ class ComputationDomains:
         self.dzdomains.autojoin()
 
         # Update Domain objects considering periodic bc
-        if re.match(r'P.P.', self._bc):
+        if _re.match(r'P.P.', self._bc):
             mask, _ = self.init_masks(self._shape, self._bc, self._obstacles)
             self.dxdomains.periodic_bc(mask, axis=0)
-        if re.match(r'.P.P', self._bc):
+        if _re.match(r'.P.P', self._bc):
             mask, _ = self.init_masks(self._shape, self._bc, self._obstacles)
             self.dzdomains.periodic_bc(mask, axis=1)
 
         # Fill filter Subdomains
-        self.fxdomains = copy.deepcopy(self.dxdomains)
-        self.fzdomains = copy.deepcopy(self.dzdomains)
+        self.fxdomains = _copy.deepcopy(self.dxdomains)
+        self.fzdomains = _copy.deepcopy(self.dzdomains)
 
         # Check compatibility between obstacles and PML and determine PML Domain
         if 'A' in self._bc:
@@ -147,18 +145,18 @@ class ComputationDomains:
 
         for sub in self.dxdomains:
             if len(sub.rx) < 2*self._stencil + 1 and sub.bc == "RR":
-                raise CloseObstaclesError(msg.format(sub))
+                raise _exceptions.CloseObstaclesError(msg.format(sub))
 
         for sub in self.dzdomains:
             if len(sub.rz) < 2*self._stencil + 1 and sub.bc == "RR":
-                raise CloseObstaclesError(msg.format(sub))
+                raise _exceptions.CloseObstaclesError(msg.format(sub))
 
         for sub in self.adomains:
-            if sub.axis == 0 and len(sub.rz) < 2*self._stencil and re.match(r'.R.R', sub.bc):
-                raise CloseObstaclesError(msg.format(sub))
+            if sub.axis == 0 and len(sub.rz) < 2*self._stencil and _re.match(r'.R.R', sub.bc):
+                raise _exceptions.CloseObstaclesError(msg.format(sub))
 
-            if sub.axis == 1 and len(sub.rx) < 2*self._stencil and re.match(r'R.R.', sub.bc):
-                raise CloseObstaclesError(msg.format(sub))
+            if sub.axis == 1 and len(sub.rx) < 2*self._stencil and _re.match(r'R.R.', sub.bc):
+                raise _exceptions.CloseObstaclesError(msg.format(sub))
 
     def _built_pml(self):
 
@@ -187,7 +185,7 @@ class ComputationDomains:
 
         # Update tags
         for sub in tosplit:
-            idx = np.argwhere(np.array(sub.xz)-np.array(self.gdomain.xz) == 0).ravel()
+            idx = _np.argwhere(_np.array(sub.xz) - _np.array(self.gdomain.xz) == 0).ravel()
             for i in idx:
                 if self.gdomain.bc[i] == 'A' and self._Npml in (len(sub.rx), len(sub.rz)):
                     if sub.tag != 'A':
@@ -204,7 +202,7 @@ class ComputationDomains:
             lst = []
             dom = [s for s in tojoin if s.tag == 'A']
 
-            for sub1, sub2 in itertools.combinations(dom, r=2):
+            for sub1, sub2 in _itertools.combinations(dom, r=2):
                 if tojoin.isjoinable(sub1, sub2, include_split=True):
                     lst.append(sub1.key)
                     lst.append(sub2.key)
@@ -227,9 +225,9 @@ class ComputationDomains:
 
         # Remove duplicates and update bc
         newsubs = Domain(self._shape)
-        for sub1, sub2 in itertools.combinations(tmp, r=2):
+        for sub1, sub2 in _itertools.combinations(tmp, r=2):
             if sub1.xz == sub2.xz:
-                bc = merge_bc(sub1.bc, sub2.bc)
+                bc = _utils.merge_bc(sub1.bc, sub2.bc)
                 sub1.bc = bc
                 sub1.key = sub1.key.replace('x', 'a').replace('z', 'a')
                 newsubs.append(sub1)
@@ -255,21 +253,21 @@ class ComputationDomains:
         for sub in self._obstacles:
             if self._bc[0] == 'A':
                 if 0 < sub.xz[0] < self._Npml + self._stencil or sub.xz[2] < self._Npml+1:
-                    raise CloseObstaclesError(msg.format(sub))
+                    raise _exceptions.CloseObstaclesError(msg.format(sub))
 
             if self._bc[1] == 'A':
                 if 0 < sub.xz[1] < self._Npml + self._stencil or sub.xz[3] < self._Npml+1:
-                    raise CloseObstaclesError(msg.format(sub))
+                    raise _exceptions.CloseObstaclesError(msg.format(sub))
 
             if self._bc[2] == 'A':
                 if self._nx-self._Npml-self._stencil < sub.xz[2] < self._nx-1 \
                         or sub.xz[0] >= self._nx - self._Npml - 1:
-                    raise CloseObstaclesError(msg.format(sub))
+                    raise _exceptions.CloseObstaclesError(msg.format(sub))
 
             if self._bc[3] == 'A':
                 if self._nz-self._Npml-self._stencil < sub.xz[3] < self._nz-1 \
                         or sub.xz[1] >= self._nz - self._Npml - 1:
-                    raise CloseObstaclesError(msg.format(sub))
+                    raise _exceptions.CloseObstaclesError(msg.format(sub))
 
     def _find_domains(self):
         """ Find computation domains. """
@@ -292,40 +290,40 @@ class ComputationDomains:
         """ Make some tests to check if all subdomains are well defined. """
         if not self.is_domain_complete:
             msg = "Uncomplete computation domain. See domains.show_missings() method."
-            warnings.warn(msg)
+            _warnings.warn(msg)
         if not self.is_bc_complete:
             msg = "Undefined boundary for {}. Check subdomains."
-            warnings.warn(msg.format(self.missing_bc[0].key))
+            _warnings.warn(msg.format(self.missing_bc[0].key))
 
     def _top(self, obs):
         s = self._zmask[obs.sx, obs.iz[1]+1]
-        tmp = np.argwhere(s == 0).ravel()
+        tmp = _np.argwhere(s == 0).ravel()
         if len(tmp) > 0:
-            lst = split_discontinuous(tmp + obs.ix[0])
+            lst = _utils.split_discontinuous(tmp + obs.ix[0])
             for idx in lst:
                 self._extrude_top(obs, idx)
 
     def _bottom(self, obs):
         s = self._zmask[obs.sx, obs.iz[0]-1]
-        tmp = np.argwhere(s == 0).ravel()
+        tmp = _np.argwhere(s == 0).ravel()
         if len(tmp) > 0:
-            lst = split_discontinuous(tmp + obs.ix[0])
+            lst = _utils.split_discontinuous(tmp + obs.ix[0])
             for idx in lst:
                 self._extrude_bottom(obs, idx)
 
     def _right(self, obs):
         s = self._xmask[obs.ix[1]+1, obs.sz]
-        tmp = np.argwhere(s == 0).ravel()
+        tmp = _np.argwhere(s == 0).ravel()
         if len(tmp) > 0:
-            lst = split_discontinuous(tmp + obs.iz[0])
+            lst = _utils.split_discontinuous(tmp + obs.iz[0])
             for idz in lst:
                 self._extrude_right(obs, idz)
 
     def _left(self, obs):
         s = self._xmask[obs.ix[0]-1, obs.sz]
-        tmp = np.argwhere(s == 0).ravel()
+        tmp = _np.argwhere(s == 0).ravel()
         if len(tmp) > 0:
-            lst = split_discontinuous(tmp + obs.iz[0])
+            lst = _utils.split_discontinuous(tmp + obs.iz[0])
             for idz in lst:
                 self._extrude_left(obs, idz)
 
@@ -337,19 +335,20 @@ class ComputationDomains:
         for j in range(zc1+1, self._nz):
             zc2 = j
             mk = self._zmask[xc1+1:xc2, j]
-            if np.any(mk != 0):
-                if np.all(mk == -2):
+            if _np.any(mk != 0):
+                if _np.all(mk == -2):
                     bc = '.{}.R'.format(obs.bc[3])
-                elif np.any(mk == -2):
+                elif _np.any(mk == -2):
                     zc2 = int((zc1+zc2)/2 - 1)
                     bc = '.{}.X'.format(obs.bc[3])
-                elif np.any(mk == 1):
+                elif _np.any(mk == 1):
                     zc2 -= 1
                     bc = '.{}.X'.format(obs.bc[3])
                 break
 
         if abs(zc2 - zc1) < self._stencil:
-            raise CloseObstaclesError(CloseObstaclesError.msg.format(obs, self._stencil))
+            msg = _exceptions.CloseObstaclesError.msg.format(obs, self._stencil)
+            raise _exceptions.CloseObstaclesError(msg)
 
         self._update_domains(Subdomain((xc1, zc1, xc2, zc2), bc, self._ndz, axis=1, tag='X'))
 
@@ -361,19 +360,20 @@ class ComputationDomains:
         for j in range(zc1-1, -1, -1):
             zc2 = j
             mk = self._zmask[xc1+1:xc2, j]
-            if np.any(mk != 0):
-                if np.all(mk == -2):
+            if _np.any(mk != 0):
+                if _np.all(mk == -2):
                     bc = '.R.{}'.format(obs.bc[1])
-                elif np.any(mk == -2):
+                elif _np.any(mk == -2):
                     zc2 = int((zc1+zc2)/2 + 1)
                     bc = '.X.{}'.format(obs.bc[1])
-                elif np.any(mk == 1):
+                elif _np.any(mk == 1):
                     zc2 += 1
                     bc = '.X.{}'.format(obs.bc[1])
                 break
 
         if abs(zc2 - zc1) < self._stencil:
-            raise CloseObstaclesError(CloseObstaclesError.msg.format(obs, self._stencil))
+            msg = _exceptions.CloseObstaclesError.msg.format(obs, self._stencil)
+            raise _exceptions.CloseObstaclesError(msg)
 
         self._update_domains(Subdomain((xc1, zc2, xc2, zc1), bc, self._ndz, axis=1, tag='X'))
 
@@ -384,19 +384,20 @@ class ComputationDomains:
         for i in range(xc1 + 1, self._nx):
             xc2 = i
             mk = self._xmask[i, zc1+1:zc2]
-            if np.any(mk != 0):
-                if np.all(mk != 0):
+            if _np.any(mk != 0):
+                if _np.all(mk != 0):
                     bc = '{}.R.'.format(obs.bc[2])
-                elif np.any(mk == -2):
+                elif _np.any(mk == -2):
                     xc2 = int((xc1+xc2)/2 - 1)
                     bc = '{}.X.'.format(obs.bc[2])
-                elif np.any(mk == 1):
+                elif _np.any(mk == 1):
                     xc2 -= 1
                     bc = '{}.X.'.format(obs.bc[1])
                 break
 
         if abs(xc2 - xc1) < self._stencil:
-            raise CloseObstaclesError(CloseObstaclesError.msg.format(obs, self._stencil))
+            msg = _exceptions.CloseObstaclesError.msg.format(obs, self._stencil)
+            raise _exceptions.CloseObstaclesError(msg)
 
         self._update_domains(Subdomain((xc1, zc1, xc2, zc2), bc, self._ndx, axis=0, tag='X'))
 
@@ -408,19 +409,20 @@ class ComputationDomains:
         for i in range(xc1-1, -1, -1):
             xc2 = i
             mk = self._xmask[i, zc1+1:zc2]
-            if np.any(mk != 0):
-                if np.all(mk == -2):
+            if _np.any(mk != 0):
+                if _np.all(mk == -2):
                     bc = 'R.{}.'.format(obs.bc[0])
-                elif np.any(mk == -2):
+                elif _np.any(mk == -2):
                     xc2 = int((xc1+xc2)/2 + 1)
                     bc = 'X.{}.'.format(obs.bc[0])
-                elif np.any(mk == 1):
+                elif _np.any(mk == 1):
                     xc2 += 1
                     bc = 'X.{}.'.format(obs.bc[1])
                 break
 
         if abs(xc2 - xc1) < self._stencil:
-            raise CloseObstaclesError(CloseObstaclesError.msg.format(obs, self._stencil))
+            msg = _exceptions.CloseObstaclesError.msg.format(obs, self._stencil)
+            raise _exceptions.CloseObstaclesError(msg)
 
         self._update_domains(Subdomain((xc2, zc1, xc1, zc2), bc, self._ndx, axis=0, tag='X'))
 
@@ -430,7 +432,7 @@ class ComputationDomains:
         idz = ComputationDomains.bounds(self._shape, self._bc, self._obstacles, axis=1)
         if idz:
             void = [(0, i[0], self._nx-1, i[1]) for i in idz if i[2] == 'v']
-            void = remove_dups(void)
+            void = _utils.remove_dups(void)
             for sub in void:
                 self._update_domains(Subdomain(sub,
                                                '{}.{}.'.format(self._bc[0], self._bc[2]),
@@ -442,7 +444,7 @@ class ComputationDomains:
         idx = ComputationDomains.bounds(self._shape, self._bc, self._obstacles, axis=0)
         if idx:
             void = [(i[0], 0, i[1], self._nz-1) for i in idx if i[2] == 'v']
-            void = remove_dups(void)
+            void = _utils.remove_dups(void)
             for sub in void:
                 self._update_domains(Subdomain(sub,
                                                '.{}.{}'.format(self._bc[1], self._bc[3]),
@@ -451,8 +453,8 @@ class ComputationDomains:
     def _fill(self):
         """ Search remaining domains along both x and z axises. """
 
-        xmissings = find_areas(self._xmask, val=0)
-        zmissings = find_areas(self._zmask, val=0)
+        xmissings = _utils.find_areas(self._xmask, val=0)
+        zmissings = _utils.find_areas(self._zmask, val=0)
 
         for c in xmissings:
             bc = ['X', '.', 'X', '.']
@@ -475,7 +477,7 @@ class ComputationDomains:
     def _update_patches(self):
         """ Add patches. TODO : Fix 'else R' if an obstacle has another bc !"""
 
-        for patch in find_areas(self._xmask, val=-2):
+        for patch in _utils.find_areas(self._xmask, val=-2):
             bc = ['.', '.', '.', '.']
             if patch[0] == 0:
                 bc[0] = self._bc[0]
@@ -490,7 +492,7 @@ class ComputationDomains:
             self._update_domains(Subdomain(patch, axis=0, key=self._ndx,
                                            bc=''.join(bc), tag='W'))
 
-        for patch in find_areas(self._zmask, val=-2):
+        for patch in _utils.find_areas(self._zmask, val=-2):
             bc = ['.', '.', '.', '.']
             if patch[1] == 0:
                 bc[1] = self._bc[1]
@@ -556,8 +558,8 @@ class ComputationDomains:
         List missings.
         Returns a tuple of ndarray ([array along x], [array along z]]).
         """
-        x = np.argwhere(np.logical_or(self._xmask == 0, self._xmask == -2))
-        z = np.argwhere(np.logical_or(self._zmask == 0, self._zmask == -2))
+        x = _np.argwhere(_np.logical_or(self._xmask == 0, self._xmask == -2))
+        z = _np.argwhere(_np.logical_or(self._zmask == 0, self._zmask == -2))
         return x, z
 
     @property
@@ -582,7 +584,7 @@ class ComputationDomains:
 
     def show_missings(self):
         """ Plot missing subdomains. """
-        fig, ax = plt.subplots(1, 2, figsize=(9, 3))
+        fig, ax = _plt.subplots(1, 2, figsize=(9, 3))
         ax[0].plot(self.missing_domains[0][:, 0], self.missing_domains[0][:, 1], 'ro')
         ax[0].imshow(self._xmask.T)
         ax[0].axis([-10, self._nx+10, -10, self._nz+10])
@@ -590,7 +592,7 @@ class ComputationDomains:
         ax[1].imshow(self._zmask.T)
         ax[1].axis([-10, self._nx+10, -10, self._nz+10])
         fig.suptitle(r'Missing points')
-        plt.show()
+        _plt.show()
 
     @staticmethod
     def bounds(shape, bc, obstacles, axis=0):
@@ -615,10 +617,10 @@ class ComputationDomains:
                 if mask[:, i].any():
                     mask[:, i] = True
 
-        for c in find_areas(mask, val=0):
+        for c in _utils.find_areas(mask, val=0):
             bounds.append((c[axis], c[axis+2], 'v'))
 
-        for c in find_areas(mask, val=1):
+        for c in _utils.find_areas(mask, val=1):
             bounds.append((c[axis], c[axis+2], 'o'))
 
         bounds.sort()
@@ -630,7 +632,7 @@ class ComputationDomains:
         """ Init masks with obstacles. """
 
         gdomain = Subdomain([0, 0, shape[0]-1, shape[1]-1], bc=bc)
-        xmask = np.zeros(shape, dtype=int)
+        xmask = _np.zeros(shape, dtype=int)
         zmask = xmask.copy()
 
         for obs in obstacles:
@@ -639,7 +641,7 @@ class ComputationDomains:
                 mask[obs.sx, obs.iz] = -2
                 mask[obs.ix, obs.sz] = -2
 
-        for obs1, obs2 in itertools.permutations(obstacles, r=2):
+        for obs1, obs2 in _itertools.permutations(obstacles, r=2):
             c = obs1.intersection(obs2)
             if c:
                 xmask[c[0], c[1]] = -1
@@ -652,8 +654,8 @@ class ComputationDomains:
                     xmask[c[0], c[1]] = -1
                     zmask[c[0], c[1]] = -1
 
-        remove_singles(xmask)
-        remove_singles(zmask)
+        _utils.remove_singles(xmask)
+        _utils.remove_singles(zmask)
 
         return xmask, zmask
 

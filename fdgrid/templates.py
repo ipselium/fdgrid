@@ -30,13 +30,8 @@ Examples of obstacle arangements.
 """
 
 
-import numpy as np
-from .domains import Domain, Subdomain
-
-
-class TemplateConstructionError(Exception):
-    """ Bad value for grid template """
-    pass
+import numpy as _np
+from fdgrid import _exceptions, Domain, Subdomain
 
 
 def curv(xn, zn):
@@ -50,7 +45,7 @@ def curvx(xn, zn):
 
     zp = zn.copy()
     xp = xn \
-        + np.linspace(0.5, 0, xn.shape[1])*(np.sin(2*np.pi*zp/(zp.max()/10))/5000 \
+        + _np.linspace(0.5, 0, xn.shape[1])*(_np.sin(2*_np.pi*zp/(zp.max()/10))/5000 \
                                             - 10*zp**2)
     return xp, zp
 
@@ -60,7 +55,7 @@ def curvz(xn, zn):
 
     xp = xn.copy()
     zp = zn \
-        + np.linspace(0.5, 0, zn.shape[1])*(np.sin(2*np.pi*xp/(xp.max()/10))/5000 \
+        + _np.linspace(0.5, 0, zn.shape[1])*(_np.sin(2*_np.pi*xp/(xp.max()/10))/5000 \
                                             - 10*xp**2)
     return xp, zp
 
@@ -69,8 +64,8 @@ def curvxz(xn, zn):
     """ Curvlinear coordinates : test case 2 following x and z : circle """
 
     R = 1.
-    xp = (zn + R)*np.sin(xn/R)
-    zp = (zn + R)*np.cos(xn/R)
+    xp = (zn + R)*_np.sin(xn/R)
+    zp = (zn + R)*_np.cos(xn/R)
 
     return xp, zp
 
@@ -126,7 +121,7 @@ def helmholtz(nx, nz, cavity=(0.2, 0.2), neck=(0.1, 0.1)):
 
 
     if cavity[0] + neck[0] > 0.98 or cavity[1] + neck[1] > 0.98:
-        raise TemplateConstructionError("resonator must be smaller than the domain")
+        raise _exceptions.TemplateConstructionError("resonator must be smaller than the domain")
 
     geo = [Subdomain([0, 0, cvty_ix, cvty_hght], 'RRRR'),
            Subdomain([cvty_ix+cvty_wdth, 0, nx-1, cvty_hght], 'RRRR'),
@@ -165,7 +160,7 @@ def helmholtz_double(nx, nz, cavity=(0.2, 0.2), neck=(0.1, 0.1)):
 
 
     if cavity[0] + neck[0] > 0.98 or cavity[1] + neck[1] > 0.98:
-        raise TemplateConstructionError("resonator must be smaller than the domain")
+        raise _exceptions.TemplateConstructionError("resonator must be smaller than the domain")
 
     geo = [Subdomain([0, 0, cvty_ix, xcvty_hght], 'RRRR'),
            Subdomain([cvty_ix+xcvty_wdth, 0, nx-1, xcvty_hght], 'RRRR'),
@@ -198,7 +193,7 @@ def plus(nx, nz, ix0=None, iz0=None, size=20):
 
     if ix0 <= 1.5*size or iz0 <= 0.5*size:
         msg = "Center of the plus must be greater than 1.5 time the size of a square"
-        raise TemplateConstructionError(msg)
+        raise _exceptions.TemplateConstructionError(msg)
 
     ixstart = int(ix0 - 1.5*size)
     izstart = int(iz0 - 0.5*size)

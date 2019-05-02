@@ -37,14 +37,15 @@ It also provides the fonction `plot_subdomain`.
 @author: Cyril Desjouy
 """
 
+__all__ = ['plot_subdomains', 'Domain', 'Subdomain']
 
-import copy
-import itertools
-import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib import patches
-from dataclasses import dataclass
-from .utils import split_discontinuous, sort
+import copy as _copy
+import itertools as _itertools
+import numpy as _np
+import matplotlib.pyplot as _plt
+import matplotlib.patches as _patches
+import dataclasses as _dataclasses
+import fdgrid.utils as _utils
 
 
 def plot_subdomains(ax, x, z, domain, legend=False,
@@ -77,7 +78,7 @@ def plot_subdomains(ax, x, z, domain, legend=False,
                             z[sub.rx, sub.iz[0]],
                             z[sub.rx, sub.iz[1]], color=facecolor, alpha=alpha)
 
-        elif curvilinear and isinstance(sub, (np.ndarray, list)):
+        elif curvilinear and isinstance(sub, (_np.ndarray, list)):
             ax.plot(x[sub[0], sub[1]:sub[3]+1], z[sub[0], sub[1]:sub[3]+1],
                     color=edgecolor, linewidth=3)
             ax.plot(x[sub[2], sub[1]:sub[3]+1], z[sub[2], sub[1]:sub[3]+1],
@@ -88,8 +89,8 @@ def plot_subdomains(ax, x, z, domain, legend=False,
             ax.plot(x[sub[0]:sub[2]+1, sub[3]], z[sub[0]:sub[2]+1, sub[3]],
                     color=edgecolor, linewidth=3)
 
-        elif isinstance(sub, (np.ndarray, list, Subdomain)):
-            if isinstance(sub, (np.ndarray, list)):
+        elif isinstance(sub, (_np.ndarray, list, Subdomain)):
+            if isinstance(sub, (_np.ndarray, list)):
                 origin = (x[sub[0]], z[sub[1]])
                 width = x[sub[2]] - x[sub[0]]
                 height = z[sub[3]] - z[sub[1]]
@@ -98,9 +99,9 @@ def plot_subdomains(ax, x, z, domain, legend=False,
                 width = x[sub.ix[1]] - x[sub.ix[0]]
                 height = z[sub.iz[1]] - z[sub.iz[0]]
 
-            rect = patches.Rectangle(origin, width, height, linewidth=3,
-                                     edgecolor=edgecolor, facecolor=facecolor,
-                                     alpha=alpha)
+            rect = _patches.Rectangle(origin, width, height, linewidth=3,
+                                      edgecolor=edgecolor, facecolor=facecolor,
+                                      alpha=alpha)
             ax.add_patch(rect)
 
         else:
@@ -146,16 +147,16 @@ class Domain:
     def show(self, legend=False, fcolor='b', ecolor='y'):
         """ Represent the Subdomains. """
 
-        _, ax = plt.subplots(figsize=(9, 9))
+        _, ax = _plt.subplots(figsize=(9, 9))
 
         for sub in self:
-            rect = patches.Rectangle((sub.ix[0], sub.iz[0]),
-                                     sub.ix[1] - sub.ix[0],
-                                     sub.iz[1] - sub.iz[0],
-                                     linewidth=3,
-                                     edgecolor=ecolor,
-                                     facecolor=fcolor,
-                                     alpha=0.5)
+            rect = _patches.Rectangle((sub.ix[0], sub.iz[0]),
+                                      sub.ix[1] - sub.ix[0],
+                                      sub.iz[1] - sub.iz[0],
+                                      linewidth=3,
+                                      edgecolor=ecolor,
+                                      facecolor=fcolor,
+                                      alpha=0.5)
             ax.add_patch(rect)
 
         ax.set_xlim(0, self.nx)
@@ -182,7 +183,7 @@ class Domain:
 
     def keys(self):
         """ Return all keys of Domain instance. """
-        return sort(self._data.keys())
+        return _utils.sort(self._data.keys())
 
     def sort(self, inplace=False):
         """
@@ -207,12 +208,12 @@ class Domain:
 
     def copy(self):
         """ Create copy of the instance. """
-        return copy.deepcopy(self)
+        return _copy.deepcopy(self)
 
     def mask(self):
         """ Create mask array of the domain. """
 
-        mask = np.zeros(self.shape)
+        mask = _np.zeros(self.shape)
 
         for sub in self:
             mask[sub.sx, sub.sz] += 1
@@ -345,7 +346,7 @@ class Domain:
     def autojoin(self, include_split=False):
         """ Automatically join domains that can be joined. """
 
-        for sub1, sub2 in itertools.combinations(self, r=2):
+        for sub1, sub2 in _itertools.combinations(self, r=2):
             if self.isjoinable(sub1, sub2, include_split=include_split):
                 self.join(sub1.key, sub2.key, include_split=include_split)
 
@@ -408,8 +409,8 @@ class Domain:
 
     def _xperiod(self, mask):
 
-        left = np.argwhere(mask[0, :] != 0).ravel()
-        right = np.argwhere(mask[-1, :] != 0).ravel()
+        left = _np.argwhere(mask[0, :] != 0).ravel()
+        right = _np.argwhere(mask[-1, :] != 0).ravel()
 
         left_rigid, right_rigid = self._periodic_bounds(left, right)
 
@@ -421,8 +422,8 @@ class Domain:
 
     def _zperiod(self, mask):
 
-        bot = np.argwhere(mask[:, 0] != 0).ravel()
-        top = np.argwhere(mask[:, -1] != 0).ravel()
+        bot = _np.argwhere(mask[:, 0] != 0).ravel()
+        top = _np.argwhere(mask[:, -1] != 0).ravel()
 
         bot_rigid, top_rigid = self._periodic_bounds(bot, top)
 
@@ -439,12 +440,12 @@ class Domain:
         top_rigid = list(set(bot).difference(set(top)))
 
         if any(bot_rigid):
-            bot_rigid = split_discontinuous(bot_rigid)
+            bot_rigid = _utils.split_discontinuous(bot_rigid)
         else:
             bot_rigid = []
 
         if any(top_rigid):
-            top_rigid = split_discontinuous(top_rigid)
+            top_rigid = _utils.split_discontinuous(top_rigid)
         else:
             top_rigid = []
 
@@ -608,7 +609,7 @@ class Domain:
         return self.__str__()
 
 
-@dataclass
+@_dataclasses.dataclass
 class Subdomain:
     """ Subdomain of the computation domain.
 
@@ -705,7 +706,7 @@ class Subdomain:
             indexes = [(0, 2, 1, 3), (1, 3, 0, 2)]
 
         for a, b, c, d in indexes:
-            for i, j in itertools.product([a, b], repeat=2):
+            for i, j in _itertools.product([a, b], repeat=2):
                 c1 = other.xz[j] - 1 <= self.xz[i] <= other.xz[j] + 1
                 c2 = self.xz[c] >= other.xz[c] and self.xz[d] <= other.xz[d]
                 if c1 and c2:
@@ -796,7 +797,7 @@ class Subdomain:
 
                 if index_set.issubset(domain_set):
                     remaining = list(domain_set.difference(index_set))
-                    lst = split_discontinuous(remaining)
+                    lst = _utils.split_discontinuous(remaining)
                     lst.append(index)
                     lst.sort()
                     return lst

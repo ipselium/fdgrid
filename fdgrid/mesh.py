@@ -31,17 +31,18 @@ Submodule `mesh` provides the mesh classes.
 @author: Cyril Desjouy
 """
 
-import re
-import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib import ticker
-from ofdlib2 import derivation
-from mpl_toolkits.axes_grid1 import make_axes_locatable
-from .utils import down_sample
-from .exceptions import BoundaryConditionError, GridError
-from .domains import plot_subdomains
-from .cdomain import ComputationDomains
-from .templates import curv
+__all__ = ['Mesh', 'AdaptativeMesh', 'CurvilinearMesh']
+
+import re as _re
+import numpy as _np
+import matplotlib.pyplot as _plt
+import matplotlib.ticker as _ticker
+import ofdlib2.derivation as _drv
+import mpl_toolkits.axes_grid1 as _axes_grid1
+from fdgrid import _exceptions, plot_subdomains
+from fdgrid import utils as _utils
+from fdgrid.cdomain import ComputationDomains
+from fdgrid.templates import curv as _curv
 
 
 def plot_grid(ax, x, z, N=8):
@@ -60,10 +61,10 @@ def plot_grid(ax, x, z, N=8):
         nx = x.shape[0]
         nz = z.shape[0]
 
-        for xi in down_sample(x, N):
+        for xi in _utils.down_sample(x, N):
             ax.plot(xi.repeat(nz), z, 'k', linewidth=0.5)
 
-        for zi in down_sample(z, N):
+        for zi in _utils.down_sample(z, N):
             ax.plot(x, zi.repeat(nx), 'k', linewidth=0.5)
 
     elif len(x.shape) == 2 and len(z.shape) == 2:
@@ -71,10 +72,10 @@ def plot_grid(ax, x, z, N=8):
         nx = x.shape[0]
         nz = x.shape[1]
 
-        for i in np.arange(0, nz, int(nx/N)):
+        for i in _np.arange(0, nz, int(nx/N)):
             ax.plot(x[:, i], z[:, i], 'k')
 
-        for i in np.arange(0, nx, int(nz/N)):
+        for i in _np.arange(0, nx, int(nz/N)):
             ax.plot(x[i, :], z[i, :], 'k')
 
         ax.plot(x[:, -1], z[:, -1], 'k')
@@ -121,8 +122,8 @@ class Mesh:
     def _make_grid(self):
         """ Make grid. """
 
-        self.x = (np.arange(self.nx)-self.ix0)*self.dx
-        self.z = (np.arange(self.nz)-self.iz0)*self.dz
+        self.x = (_np.arange(self.nx)-self.ix0)*self.dx
+        self.z = (_np.arange(self.nz)-self.iz0)*self.dz
 
     def N(self, axis):
         """ Return number of point following 'axis'. """
@@ -160,21 +161,21 @@ class Mesh:
 
         regex = [r'[^P].P.', r'P.[^P].', r'.[^P].P', r'.P.[^P]']
 
-        if not re.match(r'^[ZRAP]*$', self.bc):
-            raise BoundaryConditionError("bc must be combination of 'ZRAP'!")
+        if not _re.match(r'^[ZRAP]*$', self.bc):
+            raise _exceptions.BoundaryConditionError("bc must be combination of 'ZRAP'!")
 
-        if any(re.match(r, self.bc) for r in regex):
+        if any(_re.match(r, self.bc) for r in regex):
             msg = "periodic condition must be on both sides of the domain,"
             msg += " i.e. '(P.P.)'|'(.P.P)'"
-            raise BoundaryConditionError(msg)
+            raise _exceptions.BoundaryConditionError(msg)
 
     def _check_grid(self):
 
         if self.Npml < self.stencil:
-            raise GridError("Number of points of PML must be greater than stencil")
+            raise _exceptions.GridError("Number of points of PML must be greater than stencil")
 
         if self.ix0 > self.nx or self.iz0 > self.nz:
-            raise GridError("Origin of the domain must be in the domain")
+            raise _exceptions.GridError("Origin of the domain must be in the domain")
 
     def plot_domains(self, legend=False, N=4, size=(9, 18)):
         """ Plot a scheme of the computation domain higlighting the subdomains.
@@ -185,7 +186,7 @@ class Mesh:
             N: Keep one point over N
         """
 
-        _, axes = plt.subplots(2, 1, figsize=size)
+        _, axes = _plt.subplots(2, 1, figsize=size)
 
         offset = 10
 
@@ -219,20 +220,20 @@ class Mesh:
             self._show_bc(axes, offset)
             print(self.domain)
 
-        plt.tight_layout()
+        _plt.tight_layout()
 
     def _show_bc(self, axes, offset):
         """ Show text indicating each of the 4 bc of the domain. """
 
-        xloc = np.array([self.x[0] - self.dx*offset/2,
-                         (self.x[-1] - np.abs(self.x[0]))/2 + self.dx,
-                         self.x[-1] + self.dx,
-                         (self.x[-1] - np.abs(self.x[0]))/2])
+        xloc = _np.array([self.x[0] - self.dx*offset/2,
+                          (self.x[-1] - _np.abs(self.x[0]))/2 + self.dx,
+                          self.x[-1] + self.dx,
+                          (self.x[-1] - _np.abs(self.x[0]))/2])
 
-        zloc = np.array([(self.z[-1] - np.abs(self.z[0]))/2,
-                         self.z[0] - self.dz*offset/1.25,
-                         (self.z[-1] - np.abs(self.z[0]))/2,
-                         self.z[-1] + self.dz])
+        zloc = _np.array([(self.z[-1] - _np.abs(self.z[0]))/2,
+                          self.z[0] - self.dz*offset/1.25,
+                          (self.z[-1] - _np.abs(self.z[0]))/2,
+                          self.z[-1] + self.dz])
 
         for bc, x, z in zip(self.bc, xloc, zloc):
             for ax in axes:
@@ -241,12 +242,12 @@ class Mesh:
     def plot_grid(self, figsize=(9, 5), N=4):
         """ Grid representation """
 
-        nullfmt = ticker.NullFormatter()         # no labels
+        nullfmt = _ticker.NullFormatter()         # no labels
 
-        fig, ax_c = plt.subplots(figsize=figsize)
+        fig, ax_c = _plt.subplots(figsize=figsize)
         fig.subplots_adjust(.1, .1, .95, .95)
 
-        divider = make_axes_locatable(ax_c)
+        divider = _axes_grid1.make_axes_locatable(ax_c)
         ax_xa = divider.append_axes('top', size='30%', pad=0.1)
         ax_xb = divider.append_axes('top', size='20%', pad=0.1)
         ax_za = divider.append_axes('right', size='15%', pad=0.1)
@@ -261,12 +262,12 @@ class Mesh:
         ax_c.set_ylabel(r'$z$ [m]')
         ax_c.set_aspect('equal')
 
-        ax_xa.plot(self.x[:-1], np.diff(self.x)/self.dx, 'ko')
+        ax_xa.plot(self.x[:-1], _np.diff(self.x)/self.dx, 'ko')
         ax_xa.set_ylabel(r"$x'/dx$")
         ax_xb.plot(self.x, range(len(self.x)), 'k', linewidth=2)
         ax_xb.set_ylabel(r"$N_x$")
 
-        ax_za.plot(np.diff(self.z)/self.dz, self.z[:-1], 'ko')
+        ax_za.plot(_np.diff(self.z)/self.dz, self.z[:-1], 'ko')
         ax_za.set_xlabel(r"$z'/dz$")
         ax_zb.plot(range(len(self.z)), self.z, 'k', linewidth=2)
         ax_zb.set_xlabel(r"$N_z$")
@@ -288,12 +289,12 @@ class Mesh:
     def plot_xz(self, figsize=(9, 4)):
         """ Plot mesh """
 
-        _, axes = plt.subplots(2, 2, figsize=figsize)
+        _, axes = _plt.subplots(2, 2, figsize=figsize)
         axes[0, 0].plot(self.x, 'k*')
         axes[0, 0].set_xlabel(r'$N_x$')
         axes[0, 0].set_ylabel(r'$x$ [m]')
 
-        axes[1, 0].plot(np.diff(self.x)/self.dx, 'k*')
+        axes[1, 0].plot(_np.diff(self.x)/self.dx, 'k*')
         axes[1, 0].set_xlabel(r'$x$ [m]')
         axes[1, 0].set_ylabel(r"$x'/dx$")
 
@@ -301,7 +302,7 @@ class Mesh:
         axes[0, 1].set_xlabel(r'$N_z$')
         axes[0, 1].set_ylabel(r'$z$ [m]')
 
-        axes[1, 1].plot(np.diff(self.z)/self.dz, 'k*')
+        axes[1, 1].plot(_np.diff(self.z)/self.dz, 'k*')
         axes[1, 1].set_xlabel(r'$z$ [m]')
         axes[1, 1].set_ylabel(r"$z'/dz$")
 
@@ -312,7 +313,7 @@ class Mesh:
                     if j[-1] == 'o':
                         ax.axvspan(j[0], j[1], facecolor='k', alpha=0.5)
 
-        plt.tight_layout()
+        _plt.tight_layout()
 
     def get_obstacles(self):
         """ Get a list of the coordinates of all obstacles. """
@@ -321,7 +322,7 @@ class Mesh:
     @staticmethod
     def show_figures():
         """ Show all figures. """
-        plt.show()
+        _plt.show()
 
     def __str__(self):
         s = 'Cartesian {}x{} points grid with {} boundary conditions:\n\n'
@@ -353,14 +354,14 @@ class AdaptativeMesh(Mesh):
 
     def _make_grid(self):
 
-        self.x = np.zeros(self.nx)
-        self.z = np.zeros(self.nz)
+        self.x = _np.zeros(self.nx)
+        self.z = _np.zeros(self.nz)
 
         self.Nr = 46
         self._alpha_r = 2
 
-        self._rr = np.exp(np.log(self._alpha_r)/self.Nr)
-        self._ra = np.exp(np.log(3)/self.Npml)
+        self._rr = _np.exp(_np.log(self._alpha_r)/self.Nr)
+        self._ra = _np.exp(_np.log(3)/self.Npml)
 
         xlim, zlim = self._limits()
 
@@ -488,10 +489,10 @@ class CurvilinearMesh(Mesh):
     """
 
     def __init__(self, shape, step, origin=(0, 0),
-                 bc='RRRR', obstacles=None, Npml=15, stencil=11, fcurvxz=curv):
+                 bc='RRRR', obstacles=None, Npml=15, stencil=11, fcurvxz=_curv):
 
         if not fcurvxz:
-            self.fcurvxz = curv
+            self.fcurvxz = _curv
         else:
             self.fcurvxz = fcurvxz
 
@@ -508,7 +509,7 @@ class CurvilinearMesh(Mesh):
         alpha : Transparency. Optional.
         """
 
-        _, axes = plt.subplots(ncols=2, figsize=(9, 4))
+        _, axes = _plt.subplots(ncols=2, figsize=(9, 4))
         plot_grid(axes[0], self.xn, self.zn)
         plot_grid(axes[1], self.xp, self.zp)
         axes[0].set(title='Numerical Domain')
@@ -525,25 +526,25 @@ class CurvilinearMesh(Mesh):
             ax.set_xlabel(r'x [m]')
             ax.set_ylabel(r'z [m]')
 
-        plt.tight_layout()
+        _plt.tight_layout()
 
     def _make_grid(self):
 
         # Coordinates
-        self.x = (np.arange(self.nx, dtype=float) - self.ix0)*self.dx
-        self.z = (np.arange(self.nz, dtype=float) - self.iz0)*self.dz
+        self.x = (_np.arange(self.nx, dtype=float) - self.ix0)*self.dx
+        self.z = (_np.arange(self.nz, dtype=float) - self.iz0)*self.dz
 
         # Numerical coordinates
-        self.xn, self.zn = np.meshgrid(self.x, self.z)
-        self.xn = np.ascontiguousarray(self.xn.T)
-        self.zn = np.ascontiguousarray(self.zn.T)
+        self.xn, self.zn = _np.meshgrid(self.x, self.z)
+        self.xn = _np.ascontiguousarray(self.xn.T)
+        self.zn = _np.ascontiguousarray(self.zn.T)
 
         # Pysical coordinates
         self.xp, self.zp = self.fcurvxz(self.xn, self.zn)
 
         # Inverse Jacobian matrix coefficients
-        du = derivation.du11(np.arange(self.nx, dtype=float),
-                             np.arange(self.nz, dtype=float), add=False)
+        du = _drv.du11(_np.arange(self.nx, dtype=float),
+                       _np.arange(self.nz, dtype=float), add=False)
 
         dxp_dxn = du.dudx(self.xp)/du.dudx(self.xn)
         dzp_dxn = du.dudx(self.zp)/du.dudx(self.xn)
@@ -560,9 +561,9 @@ class CurvilinearMesh(Mesh):
         # Check GCL
         gcl_x = du.dudx(self.dxn_dxp/self.J) + du.dudz(self.dzn_dxp/self.J)
         gcl_z = du.dudx(self.dxn_dzp/self.J) + du.dudz(self.dzn_dzp/self.J)
-        if np.abs(gcl_x).max() > 1e-8 or np.abs(gcl_z).max() > 1e-8:
-            print('GCL (x) : ', np.abs(gcl_x).max())
-            print('GCL (z) : ', np.abs(gcl_z).max())
+        if _np.abs(gcl_x).max() > 1e-8 or _np.abs(gcl_z).max() > 1e-8:
+            print('GCL (x) : ', _np.abs(gcl_x).max())
+            print('GCL (z) : ', _np.abs(gcl_z).max())
             raise ValueError('Geometric Conservation Laws not verified')
 
     def __str__(self):

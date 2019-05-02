@@ -28,3 +28,10 @@ DOCSTRING
 """
 
 __version__ = "0.6.4"
+
+__all__ = ['mesh',
+           'domains',
+           'templates']
+
+from .domains import Domain, Subdomain, plot_subdomains
+from .mesh import Mesh, AdaptativeMesh, CurvilinearMesh

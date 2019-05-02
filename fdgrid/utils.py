@@ -28,9 +28,9 @@ Some tools for fdgrid.
 @author: Cyril Desjouy
 """
 
-import re
-import numpy as np
-import scipy.ndimage as ndi
+import re as _re
+import numpy as _np
+import scipy.ndimage as _ndi
 
 
 def sort(l):
@@ -39,7 +39,7 @@ def sort(l):
     From https://stackoverflow.com/questions/2669059/how-to-sort-alpha-numeric-set-in-python
     """
     convert = lambda text: int(text) if text.isdigit() else text
-    alphanum_key = lambda key: [convert(c) for c in re.split('([0-9]+)', key)]
+    alphanum_key = lambda key: [convert(c) for c in _re.split('([0-9]+)', key)]
     return sorted(l, key=alphanum_key)
 
 
@@ -56,10 +56,10 @@ def find_areas(array, val=0):
 
         [(xmin, ymin, xmax, ymax), (...)]
     """
-    regions, n = ndi.label(array == val)
+    regions, n = _ndi.label(array == val)
     indexes = []
     for i in range(1, n+1):
-        c = np.argwhere(regions == i)
+        c = _np.argwhere(regions == i)
         c_check = remove_dups(split_discontinuous(c[:, 1]))
         if len(c_check) == 1:
             indexes.append(tuple(c[0]) + tuple(c[-1]))
@@ -78,16 +78,16 @@ def find_areas(array, val=0):
 def remove_singles(array, size=1, oldval=-2, newval=-1):
     """ Replace isolated points of oldval to newval in array.  """
     mask = (array == oldval)
-    regions, n = ndi.label(mask)
-    sizes = np.array(ndi.sum(mask, regions, range(n + 1)))
+    regions, n = _ndi.label(mask)
+    sizes = _np.array(_ndi.sum(mask, regions, range(n + 1)))
     mask = (sizes == size)[regions]
     array[mask] = newval
 
 
 def split_discontinuous(array):
     """ Split discontinuous array. """
-    idx = np.argwhere(np.diff(array) != 1).ravel()
-    return [(min(l), max(l)) for l in np.split(array, idx+1)]
+    idx = _np.argwhere(_np.diff(array) != 1).ravel()
+    return [(min(l), max(l)) for l in _np.split(array, idx+1)]
 
 
 def remove_dups(lst):
@@ -131,4 +131,4 @@ def down_sample(v, N=4):
     div_min = [abs(i-N) for i in div_list]
     if div_min:
         N = div_list[div_min.index(min(div_min))]
-    return np.array([j for i, j in enumerate(v) if i%N == 0] + [v[-1]])
+    return _np.array([j for i, j in enumerate(v) if i%N == 0] + [v[-1]])

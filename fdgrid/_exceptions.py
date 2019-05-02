@@ -41,3 +41,8 @@ class BoundaryConditionError(Exception):
 class GridError(Exception):
     """ Exception when wrong grid parameters. """
     pass
+
+
+class TemplateConstructionError(Exception):
+    """ Bad value for grid template """
+    pass
