@@ -29,7 +29,6 @@ fdgrid setup file.
 """
 
 from setuptools import setup, find_packages
-import fdgrid
 
 setup(
 
@@ -37,14 +36,14 @@ setup(
     description="Grid generator",
     long_description=open('README.md').read(),
     long_description_content_type='text/markdown',
-    version=fdgrid.__version__,
+    version='0.6.6',
     license="GPL",
     url='http://github.com/ipselium/fdgrid',
     author="Cyril Desjouy",
     author_email="cyril.desjouy@univ-lemans.fr",
     packages=find_packages(),
     include_package_data=True,
-    install_requires=[],
+    install_requires=['numpy', 'scipy', 'matplotlib', 'ofdlib2'],
     classifiers=[
         "Development Status :: 4 - Beta",
         "Programming Language :: Python :: 3",
