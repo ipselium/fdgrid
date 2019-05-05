@@ -543,8 +543,8 @@ class CurvilinearMesh(Mesh):
         self.xp, self.zp = self.fcurvxz(self.xn, self.zn)
 
         # Inverse Jacobian matrix coefficients
-        du = _drv.du11(_np.arange(self.nx, dtype=float),
-                       _np.arange(self.nz, dtype=float), add=False)
+        du = _drv.du(_np.arange(self.nx, dtype=float),
+                     _np.arange(self.nz, dtype=float), stencil=11, add=False)
 
         dxp_dxn = du.dudx(self.xp)/du.dudx(self.xn)
         dzp_dxn = du.dudx(self.zp)/du.dudx(self.xn)
