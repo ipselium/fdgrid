@@ -112,6 +112,8 @@ class Mesh:
         self.Npml = Npml
 
         self.obstacles = obstacles
+        if not self.obstacles:
+            self.obstacles = []
         self.bc = bc.upper()
         self._check_bc()
         self._check_grid()
