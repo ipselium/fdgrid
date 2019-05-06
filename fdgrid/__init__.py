@@ -27,7 +27,7 @@ DOCSTRING
 @author: Cyril Desjouy
 """
 
-__version__ = "0.6.7"
+__version__ = "0.6.8"
 
 __all__ = ['mesh',
            'domains',

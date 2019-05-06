@@ -36,7 +36,7 @@ setup(
     description="Grid generator",
     long_description=open('README.md').read(),
     long_description_content_type='text/markdown',
-    version='0.6.7',
+    version='0.6.8',
     license="GPL",
     url='http://github.com/ipselium/fdgrid',
     author="Cyril Desjouy",
