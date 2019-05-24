@@ -34,6 +34,7 @@ Submodule `mesh` provides the mesh classes.
 __all__ = ['Mesh', 'AdaptativeMesh', 'CurvilinearMesh']
 
 import re as _re
+import itertools as _itertools
 import numpy as _np
 import matplotlib.pyplot as _plt
 import matplotlib.ticker as _ticker
@@ -242,7 +243,13 @@ class Mesh:
                 ax.text(x, z, bc, color='r')
 
     def plot_grid(self, figsize=(9, 5), N=4):
-        """ Grid representation """
+        """ Grid representation.
+
+        BUG
+        ---
+        Note that the curves dx'/dx are not representative on the edges because
+        of the gradient.
+        """
 
         nullfmt = _ticker.NullFormatter()         # no labels
 
@@ -264,12 +271,12 @@ class Mesh:
         ax_c.set_ylabel(r'$z$ [m]')
         ax_c.set_aspect('equal')
 
-        ax_xa.plot(self.x[:-1], _np.diff(self.x)/self.dx, 'ko')
+        ax_xa.plot(self.x, _np.gradient(self.x)/self.dx, 'ko')
         ax_xa.set_ylabel(r"$x'/dx$")
         ax_xb.plot(self.x, range(len(self.x)), 'k', linewidth=2)
         ax_xb.set_ylabel(r"$N_x$")
 
-        ax_za.plot(_np.diff(self.z)/self.dz, self.z[:-1], 'ko')
+        ax_za.plot(_np.gradient(self.z)/self.dz, self.z, 'ko')
         ax_za.set_xlabel(r"$z'/dz$")
         ax_zb.plot(range(len(self.z)), self.z, 'k', linewidth=2)
         ax_zb.set_xlabel(r"$N_z$")
@@ -296,7 +303,7 @@ class Mesh:
         axes[0, 0].set_xlabel(r'$N_x$')
         axes[0, 0].set_ylabel(r'$x$ [m]')
 
-        axes[1, 0].plot(_np.diff(self.x)/self.dx, 'k*')
+        axes[1, 0].plot(_np.gradient(self.x)/self.dx, 'k*')
         axes[1, 0].set_xlabel(r'$x$ [m]')
         axes[1, 0].set_ylabel(r"$x'/dx$")
 
@@ -304,7 +311,7 @@ class Mesh:
         axes[0, 1].set_xlabel(r'$N_z$')
         axes[0, 1].set_ylabel(r'$z$ [m]')
 
-        axes[1, 1].plot(_np.diff(self.z)/self.dz, 'k*')
+        axes[1, 1].plot(_np.gradient(self.z)/self.dz, 'k*')
         axes[1, 1].set_xlabel(r'$z$ [m]')
         axes[1, 1].set_ylabel(r"$z'/dz$")
 
@@ -352,114 +359,216 @@ class AdaptativeMesh(Mesh):
     obstacles : Domain object. Set of obstacles to consider
     Npml : Int. Number of points of the absorbing area (if 'A' is in bc). Optional
     stencil : Int. Size of the finite difference stencil that will be used by nsfds2
+    dilatation : dilatation rate over Nd points. Float.
+    Nd : Number of point of adaptative areas. Integer
+    only_pml : Adaptative mesh only in PML areas. Boolean.
     """
+
+    def __init__(self, shape, step, origin=(0, 0),
+                 bc='RRRR', obstacles=None, Npml=15, stencil=11,
+                 dilatation=3., Nd=23, only_pml=False):
+
+        self.only_pml = only_pml
+        self.N = Nd
+        self.dilatation = dilatation/100
+
+        super().__init__(shape, step, origin, bc, obstacles, Npml, stencil)
 
     def _make_grid(self):
 
-        self.x = _np.zeros(self.nx)
-        self.z = _np.zeros(self.nz)
-
-        self.Nr = 46
-        self._alpha_r = 2
-
-        self._rr = _np.exp(_np.log(self._alpha_r)/self.Nr)
-        self._ra = _np.exp(_np.log(3)/self.Npml)
+        self.stretch = 1 - _np.arange(self.N)/self.N*self.dilatation
+        self.stretch_PML = 1 + ((_np.arange(self.Npml) - self.Npml)/self.Npml)**2
+        self.amin = self.stretch[-1]
 
         xlim, zlim = self._limits()
 
-        self.x = self._make_axis(self.x, self.dx, xlim, axis=0)
-        self.z = self._make_axis(self.z, self.dz, zlim, axis=1)
+        self.ax = self._make_axis(self.nx, xlim, axis=0)
+        self.az = self._make_axis(self.nz, zlim, axis=1)
 
+        self.x = _np.cumsum(self.ax*self.dx)
         self.x -= self.x[self.ix0]
+
+        self.z = _np.cumsum(self.az*self.dz)
         self.z -= self.z[self.iz0]
 
-    def _bc_at(self, side, axis):
-        """ Return bc following 'axis' at 'side' location. """
-        if side == 'start':
-            bc = self.bc[axis]
-        elif side == 'end':
-            bc = self.bc[axis+2]
-        return bc
+    def _make_axis(self, Nm, limits, axis):
 
-    def _make_axis(self, u, du, ulim, axis):
+        # Stretch coeff
+        a = _np.zeros(Nm)
 
-        for start, stop, _ in ulim:
+        if len(limits) == 1:
+            self._grid_single(a, limits, axis)
+        else:
+            self._grid_multi(a, limits, axis)
 
-            if start == 0:
-                u, du = self._make_axis_start(u, du, start, stop+1, axis)
-            elif stop == self.N(axis) - 1:
-                u, du = self._make_axis_end(u, du, start, stop+1, axis)
+        return a
+
+    def _grid_single(self, a, limits, axis):
+
+        start, stop, _ = limits[0]
+        a[:] = 1
+
+        if self.bc[axis] == 'A':
+            a[:self.Npml] = self.stretch_PML
+
+        elif self.bc[axis] in ['R', 'Z']:
+            a[start:start+self.stencil] = self.amin
+            a[start+self.stencil:start+self.stencil+self.N] = self.stretch[::-1]
+
+        if self.bc[axis+2] == 'A':
+            a[stop-self.Npml+1:] = self.stretch_PML[::-1]
+
+        elif self.bc[axis+2] in ['R', 'Z']:
+            a[stop-self.stencil:stop+1] = self.amin
+            a[stop-self.stencil-self.N+1:stop-self.stencil+1] = self.stretch
+
+    def _grid_multi(self, a, limits, axis):
+
+        mkrs = self._markers(limits, axis)
+
+        for [start, stop, _], mk in zip(limits, mkrs):
+
+            if mk == [2, 1]:
+                a[:self.Npml] = self.stretch_PML
+                a[self.Npml:stop+1] = 1
+
+            elif mk == [2, self.amin]:
+                a[:self.Npml] = self.stretch_PML
+                a[self.Npml:stop-self.stencil-self.N] = 1
+                a[stop-self.stencil-self.N:stop-self.stencil] = self.stretch[:self.N]
+                a[stop-self.stencil:stop+1] = self.amin
+
+            elif mk == [1, 2]:
+                a[stop-self.Npml+1:] = self.stretch_PML[::-1]
+                a[start:stop-self.Npml+1] = 1
+
+            elif mk == [self.amin, 2]:
+                a[stop-self.Npml+1:] = self.stretch_PML[::-1]
+                a[start:start+self.stencil] = self.amin
+                a[start+self.stencil:start+self.stencil+self.N] = self.stretch[:self.N][::-1]
+                a[start+self.stencil+self.N:stop-self.Npml+1] = 1
+
             else:
-                u, du = self._make_in_axis(u, du, start, stop+1, axis)
+                self._middle(a, start, stop, mk)
 
-        return u
+    def _middle(self, a, start, stop, mk):
 
-    def _make_in_axis(self, u, du, start, stop, axis):
+        # Left
+        a[start:min(stop+1, start+self.stencil)] = mk[0]
 
-        lim1 = min(start + self.Nr + self.stencil, start + int((stop - start)/2))
-        lim2 = max(lim1, stop - self.Nr - self.stencil)
+        # Right
+        a[max(start, stop-self.stencil):stop+1] = mk[1]
 
-        for i in range(start, stop):
+        # Center
+        if  stop - start - 2*self.stencil > 2:
 
-            u[i] = u[i-1] + du
+            Np = min(self.N, int((stop - start - 2*self.stencil)/2))
 
-            if start + self.stencil < i < lim1 and du < self.du(axis):
-                du *= self._rr
-            elif lim2 <= i < stop - self.stencil and du > self.du(axis)/self._alpha_r:
-                du /= self._rr
+            # Increase
+            if mk[0] == self.amin:
+                a[start+self.stencil:start+self.stencil+Np] = self.stretch[::-1][:Np]
+            elif mk[0] == 1:
+                a[start+self.stencil:start+self.stencil+Np] = 1
 
-        return u, du
+            # Decrease
+            if mk[1] == self.amin:
+                a[stop-self.stencil-Np+1:stop-self.stencil+1] = self.stretch[self.N-Np:]
+            elif mk[1] == 1:
+                a[stop-self.stencil-Np+1:stop-self.stencil+1] = 1
 
-    def _make_axis_start(self, u, du, start, stop, axis):
+            # Plateau
+            a[start+self.stencil+Np:stop-self.stencil-Np+1] = a[start+self.stencil+Np-1]
 
-        du0, bc = self.du(axis), self._bc_at('start', axis)
+        else:
+            a[start+self.stencil:stop+1] = a[start]
 
-        if bc == 'P':
-            lim1 = 0
-        elif bc in ['R', 'Z']:
-            lim1 = min(self.Nr+self.stencil, int((stop - start)/2))
-            du = du0/self._alpha_r
-        elif bc == 'A':
-            lim1 = min(self.Npml, int((stop - start)/2))
-            for i in range(lim1):
-                du *= self._ra
+    def _markers(self, limits, axis):
 
-        lim2 = max(lim1, stop - self.Nr)
+        mkrs = []
+        self._markers_left(mkrs, limits, axis)
+        self._markers_center(mkrs, limits)
+        self._markers_right(mkrs, limits, axis)
 
-        for i in range(start, stop):
-            u[i+1] = u[i] + du
-            if self.stencil <= i < lim1 and bc != 'A' and du < du0:
-                du *= self._rr
-            elif self.stencil < i < lim1 and bc == 'A':
-                du /= self._ra
-            elif lim2 <= i < stop - self.stencil and bc != 'A' and du > du0/self._alpha_r:
-                du /= self._rr
+        return self._make_compatible(mkrs)
 
-        return u, du
+    def _markers_left(self, mkrs, limits, axis):
 
-    def _make_axis_end(self, u, du, start, stop, axis):
+        start, stop, _ = limits[0]
+        if self.bc[axis] == 'A':
+            if stop - start >= self.Npml + self.N + self.stencil:
+                mkrs.append((2, self.amin))
+            else:
+                mkrs.append((2, 1))
 
-        du0, bc = self.du(axis), self._bc_at('end', axis)
+        elif self.bc[axis] == 'P':
+            if stop - start >= 2*self.stencil + self.N:
+                mkrs.append((1, self.amin))
+            else:
+                mkrs.append((1, 1))
 
-        lim1 = min(start + self.Nr + self.stencil, start + int((stop - start)/2))
+        else:
+            mkrs.append((self.amin, self.amin))
 
-        if bc in ['R', 'Z']:
-            lim2 = max(lim1, stop - self.Nr - self.stencil)
-        elif bc == 'A':
-            lim2 = max(lim1, stop - self.Npml - self.stencil)
-        elif bc == 'P':
-            lim2 = self.N(axis)
+    def _markers_center(self, mkrs, limits):
+        """ WARNING : The case of one variation is not processed.
+        Treated as is no variation is possible! """
 
-        for i in range(start, stop):
-            u[i] = u[i-1] + du
-            if start + self.stencil <= i < lim1  and du < du0:
-                du *= self._rr
-            elif lim2 <= i < stop - self.stencil and bc == 'A':
-                du *= self._ra
-            elif lim2 <= i < stop - self.stencil and bc != 'A' and du > du0/self._alpha_r:
-                du /= self._rr
+        for start, stop, _ in limits[1:-1]:
+            if stop - start < 2*self.stencil + self.N:
+                mkrs.append((1, 1))
 
-        return u, du
+            elif 2*self.stencil + self.N <= stop - start < 2*self.stencil + 2*self.N:
+                mkrs.append((1, 1)) # Processes as if no variation is possible
+
+            elif stop - start >= 2*self.stencil + 2*self.N:
+                mkrs.append((self.amin, self.amin))
+
+    def _markers_right(self, mkrs, limits, axis):
+
+        start, stop, _ = limits[-1]
+        if self.bc[axis+2] == 'A':
+            if stop - start >= self.Npml + self.N + self.stencil:
+                mkrs.append((self.amin, 2))
+            else:
+                mkrs.append((1, 2))
+
+        elif self.bc[axis+2] == 'P':
+            if stop - start >= 2*self.stencil + self.N:
+                mkrs.append((self.amin, 1))
+            else:
+                mkrs.append((1, 1))
+
+        else:
+            mkrs.append((self.amin, self.amin))
+
+    def _make_compatible(self, mkrs, LOG=False):
+
+        d = {(2, 1): [(2, 1)],
+             (1, 2): [(1, 2)],
+             (2, self.amin): [(2, 1), (2, self.amin)],
+             (self.amin, 2): [(self.amin, 2), (1, 2)],
+             (self.amin, self.amin): [(self.amin, self.amin),
+                                      (1, 1),
+                                      (self.amin, 1),
+                                      (1, self.amin)],
+             (1, 1): [(1, 1), (self.amin, self.amin)],
+             (1, self.amin): [(1, self.amin), (1, 1)],
+             (self.amin, 1): [(self.amin, 1), (1, 1)]}
+
+        alt = list(_itertools.product(*(d[k] for k in mkrs)))
+        alt = [k.tolist() for k in _np.array(alt) if _np.all(k[:-1, 1] == k[1:, 0])]
+        if len(alt) > 1:
+            if LOG:
+                print('{} alternative meshes'.format(len(alt)))
+            alt = alt[_np.argmin(_np.array([k.mean() for k in _np.array(alt)]))]
+        else:
+            alt = alt[0]
+
+        if LOG:
+            print(mkrs)
+            print(alt)
+
+        return alt
 
     def __str__(self):
         s = 'Adaptative cartesian {}x{} points grid with {} boundary conditions:\n\n'
@@ -467,8 +576,7 @@ class AdaptativeMesh(Mesh):
         s += '\t* Origin        : {}\n'.format((self.ix0, self.iz0))
         s += '\t* Points in PML : {}\n'.format(self.Npml)
         s += '\t* Max stencil   : {}\n'.format(self.stencil)
-        s += '\t* Dilation obs  : {:.1f}%\n'.format((self._rr-1)*100)
-        s += '\t* Dilation pml  : {:.1f}%\n'.format((self._ra-1)*100)
+        s += '\t* Dilatation over {} pts  : {:.1f} %\n'.format(self.N, (1-self.amin)*100)
 
         return s.format(self.nx, self.nz, self.bc)
 
