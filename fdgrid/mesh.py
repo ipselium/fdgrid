@@ -23,6 +23,7 @@
 #
 # pylint: disable=too-many-instance-attributes
 # pylint: disable=too-many-arguments
+# pylint: disable=too-many-locals
 """
 -----------
 
@@ -40,7 +41,7 @@ import matplotlib.pyplot as _plt
 import matplotlib.ticker as _ticker
 import ofdlib2.derivation as _drv
 import mpl_toolkits.axes_grid1 as _axes_grid1
-from fdgrid import _exceptions, plot_subdomains
+from fdgrid import _exceptions, plot_subdomains, plot_pml
 from fdgrid import utils as _utils
 from fdgrid.cdomain import ComputationDomains
 from fdgrid.templates import curv as _curv
@@ -242,7 +243,7 @@ class Mesh:
             for ax in axes:
                 ax.text(x, z, bc, color='r')
 
-    def plot_grid(self, figsize=(9, 5), N=4):
+    def plot_grid(self, figsize=(9, 5), N=4, axis=False, pml=False, save=None):
         """ Grid representation.
 
         BUG
@@ -256,12 +257,6 @@ class Mesh:
         fig, ax_c = _plt.subplots(figsize=figsize)
         fig.subplots_adjust(.1, .1, .95, .95)
 
-        divider = _axes_grid1.make_axes_locatable(ax_c)
-        ax_xa = divider.append_axes('top', size='30%', pad=0.1)
-        ax_xb = divider.append_axes('top', size='20%', pad=0.1)
-        ax_za = divider.append_axes('right', size='15%', pad=0.1)
-        ax_zb = divider.append_axes('right', size='10%', pad=0.1)
-
         plot_subdomains(ax_c, self.x, self.z, self.obstacles, facecolor='k')
         plot_grid(ax_c, self.x, self.z, N)
 
@@ -271,29 +266,44 @@ class Mesh:
         ax_c.set_ylabel(r'$z$ [m]')
         ax_c.set_aspect('equal')
 
-        ax_xa.plot(self.x, _np.gradient(self.x)/self.dx, 'ko')
-        ax_xa.set_ylabel(r"$x'/dx$")
-        ax_xb.plot(self.x, range(len(self.x)), 'k', linewidth=2)
-        ax_xb.set_ylabel(r"$N_x$")
+        if pml:
+            plot_pml(ax_c, self.x, self.z, self.bc, self.Npml)
 
-        ax_za.plot(_np.gradient(self.z)/self.dz, self.z, 'ko')
-        ax_za.set_xlabel(r"$z'/dz$")
-        ax_zb.plot(range(len(self.z)), self.z, 'k', linewidth=2)
-        ax_zb.set_xlabel(r"$N_z$")
+        if axis:
+            divider = _axes_grid1.make_axes_locatable(ax_c)
+            ax_xa = divider.append_axes('top', size='30%', pad=0.1)
+            ax_xb = divider.append_axes('top', size='20%', pad=0.1)
+            ax_za = divider.append_axes('right', size='15%', pad=0.1)
+            ax_zb = divider.append_axes('right', size='10%', pad=0.1)
 
-        for ax in [ax_xa, ax_xb]:
-            ax.set_xlim(ax_c.get_xlim())
-            ax.xaxis.set_major_formatter(nullfmt)  # no label
-            for j in self._limits()[0]:
-                if j[-1] == 'o':
-                    ax.axvspan(self.x[j[0]], self.x[j[1]], facecolor='k', alpha=0.5)
 
-        for ax in [ax_za, ax_zb]:
-            ax.set_ylim(ax_c.get_ylim())
-            ax.yaxis.set_major_formatter(nullfmt)  # no label
-            for j in self._limits()[1]:
-                if j[-1] == 'o':
-                    ax.axhspan(self.z[j[0]], self.z[j[1]], facecolor='k', alpha=0.5)
+
+            ax_xa.plot(self.x, _np.gradient(self.x)/self.dx, 'ko')
+            ax_xa.set_ylabel(r"$x'/dx$")
+            ax_xb.plot(self.x, range(len(self.x)), 'k', linewidth=2)
+            ax_xb.set_ylabel(r"$N_x$")
+
+            ax_za.plot(_np.gradient(self.z)/self.dz, self.z, 'ko')
+            ax_za.set_xlabel(r"$z'/dz$")
+            ax_zb.plot(range(len(self.z)), self.z, 'k', linewidth=2)
+            ax_zb.set_xlabel(r"$N_z$")
+
+            for ax in [ax_xa, ax_xb]:
+                ax.set_xlim(ax_c.get_xlim())
+                ax.xaxis.set_major_formatter(nullfmt)  # no label
+                for j in self._limits()[0]:
+                    if j[-1] == 'o':
+                        ax.axvspan(self.x[j[0]], self.x[j[1]], facecolor='k', alpha=0.5)
+
+            for ax in [ax_za, ax_zb]:
+                ax.set_ylim(ax_c.get_ylim())
+                ax.yaxis.set_major_formatter(nullfmt)  # no label
+                for j in self._limits()[1]:
+                    if j[-1] == 'o':
+                        ax.axhspan(self.z[j[0]], self.z[j[1]], facecolor='k', alpha=0.5)
+
+        if isinstance(save, str):
+            _plt.savefig(save)
 
     def plot_xz(self, figsize=(9, 4)):
         """ Plot mesh """

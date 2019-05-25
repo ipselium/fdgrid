@@ -37,7 +37,7 @@ It also provides the fonction `plot_subdomain`.
 @author: Cyril Desjouy
 """
 
-__all__ = ['plot_subdomains', 'Domain', 'Subdomain']
+__all__ = ['plot_subdomains', 'plot_pml', 'Domain', 'Subdomain']
 
 import copy as _copy
 import itertools as _itertools
@@ -115,6 +115,59 @@ def plot_subdomains(ax, x, z, domain, legend=False,
                 ax.text(x[sub.center[0]]-dx*len(sub.tag)*6,
                         z[sub.center[1]]-dz*3, sub.key, color=edgecolor)
 
+
+def _pml_text(ax, r):
+    rx, ry = r.get_xy()
+    cx = rx + r.get_width()/2.0
+    cy = ry + r.get_height()/2.0
+    ax.annotate('PML', (cx, cy), color='k', weight='bold',
+                fontsize=12, ha='center', va='center', rotation=90)
+
+
+def plot_pml(ax, x, z, bc, Npml, ecolor='k', fcolor='k'):
+    """ Display PML areas. """
+
+    alpha = 0.1
+
+    if bc[0] == 'A':
+        rect = _patches.Rectangle((x[0], z[0]),
+                                  x[Npml] - x[0],
+                                  z[-1] - z[0],
+                                  linewidth=3,
+                                  edgecolor=ecolor, facecolor=fcolor,
+                                  alpha=alpha)
+        _pml_text(ax, rect)
+        ax.add_patch(rect)
+
+    if bc[1] == 'A':
+        rect = _patches.Rectangle((x[0], z[0]),
+                                  z[Npml] - z[0],
+                                  x[-1] - x[0],
+                                  linewidth=3,
+                                  edgecolor=ecolor, facecolor=fcolor,
+                                  alpha=alpha)
+        _pml_text(ax, rect)
+        ax.add_patch(rect)
+
+    if bc[2] == 'A':
+        rect = _patches.Rectangle((x[-Npml], z[0]),
+                                  x[-1] - x[-Npml],
+                                  z[-1] - z[0],
+                                  linewidth=3,
+                                  edgecolor=ecolor, facecolor=fcolor,
+                                  alpha=alpha)
+        _pml_text(ax, rect)
+        ax.add_patch(rect)
+
+    if bc[3] == 'A':
+        rect = _patches.Rectangle((x[0], z[0]),
+                                  z[-1] - z[-Npml],
+                                  x[-1] - x[0],
+                                  linewidth=3,
+                                  edgecolor=ecolor, facecolor=fcolor,
+                                  alpha=alpha)
+        _pml_text(ax, rect)
+        ax.add_patch(rect)
 
 class Domain:
     """ Set of Subdomain objects.

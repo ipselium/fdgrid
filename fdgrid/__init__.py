@@ -33,5 +33,5 @@ __all__ = ['mesh',
            'domains',
            'templates']
 
-from .domains import Domain, Subdomain, plot_subdomains
+from .domains import Domain, Subdomain, plot_subdomains, plot_pml
 from .mesh import Mesh, AdaptativeMesh, CurvilinearMesh

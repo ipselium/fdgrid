@@ -69,15 +69,29 @@ pip install fdgrid
 
 For instance:
 ```python
-def square(nx, nz, size_percent=20):
-    """ From fdgrid.templates. """
+from fdgrid import mesh, templates
+from fdgrid.domains import Subdomain, Domain
 
-    size = int(min(nx, nz)*size_percent/100)
-    geo = [Subdomain([int(nx/2)-size, int(nz/2)-size,
-                      int(nx/2)+size, int(nz/2)+size], 'RRRR')]
+def custom_obstacles(nx, nz):
+
+    geo = [Subdomain([30, 20, 40, 40], 'RRRR'),
+           Subdomain([60, 20, 70, 40], 'RRRR'),
+           Subdomain([90, 20, 100, 40], 'RRRR')]
 
     return Domain((nx, nz), data=geo)
+
+nx, nz = 128, 64
+dx, dz = 1., 1.
+ix0, iz0 = 0, 0
+bc = 'ARAR'
+
+mesh2 = mesh.Mesh((nx, nz), (dx, dz), (ix0, iz0), obstacles=custom_obstacles(nx, nz), bc=bc)
+mesh2.plot_grid(pml=True)
 ```
+
+![domains](https://github.com/ipselium/fdgrid/blob/master/docs/domains.png)
+
+
 
 ### Simple adaptative mesh example
 
