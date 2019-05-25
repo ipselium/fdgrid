@@ -31,7 +31,8 @@ __version__ = "0.6.9"
 
 __all__ = ['mesh',
            'domains',
-           'templates']
+           'templates',
+           'graphics']
 
-from .domains import Domain, Subdomain, plot_subdomains, plot_pml
+from .domains import Domain, Subdomain
 from .mesh import Mesh, AdaptativeMesh, CurvilinearMesh

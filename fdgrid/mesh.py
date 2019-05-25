@@ -41,50 +41,10 @@ import matplotlib.pyplot as _plt
 import matplotlib.ticker as _ticker
 import ofdlib2.derivation as _drv
 import mpl_toolkits.axes_grid1 as _axes_grid1
-from fdgrid import _exceptions, plot_subdomains, plot_pml
-from fdgrid import utils as _utils
+from fdgrid import _exceptions
+from fdgrid import graphics as _graphics
 from fdgrid.cdomain import ComputationDomains
 from fdgrid.templates import curv as _curv
-
-
-def plot_grid(ax, x, z, N=8):
-    """ Plot grid lines.
-
-    Parameters
-    ----------
-
-    ax : Matplotlib axe object where grid must be plotted
-    x, z : x and z axes. Must be 1D or 2D ndarrays
-    N : Plot 1 over N line of the gridmesh. Optional
-    """
-
-    if len(x.shape) == 1 and len(z.shape) == 1:
-
-        nx = x.shape[0]
-        nz = z.shape[0]
-
-        for xi in _utils.down_sample(x, N):
-            ax.plot(xi.repeat(nz), z, 'k', linewidth=0.5)
-
-        for zi in _utils.down_sample(z, N):
-            ax.plot(x, zi.repeat(nx), 'k', linewidth=0.5)
-
-    elif len(x.shape) == 2 and len(z.shape) == 2:
-
-        nx = x.shape[0]
-        nz = x.shape[1]
-
-        for i in _np.arange(0, nz, int(nx/N)):
-            ax.plot(x[:, i], z[:, i], 'k')
-
-        for i in _np.arange(0, nx, int(nz/N)):
-            ax.plot(x[i, :], z[i, :], 'k')
-
-        ax.plot(x[:, -1], z[:, -1], 'k')
-        ax.plot(x[-1, :], z[-1, :], 'k')
-
-    else:
-        raise ValueError('x and z must be 1 or 2d arrays')
 
 
 class Mesh:
@@ -192,56 +152,38 @@ class Mesh:
 
         _, axes = _plt.subplots(2, 1, figsize=size)
 
-        offset = 10
-
         # Grid & Obstacles
         for ax in axes:
-            ax.set_xlim(self.x.min() - offset*self.dx, self.x.max() + offset*self.dx)
-            ax.set_ylim(self.z.min() - offset*self.dz, self.z.max() + offset*self.dz)
             ax.set_xlabel('x [m]')
             ax.set_ylabel('z [m]')
             ax.set_aspect('equal')
 
-            plot_grid(ax, self.x, self.z, N=N)
-            plot_subdomains(ax, self.x, self.z, self.obstacles)
+            _graphics.plot_grid(ax, self.x, self.z, N=N)
+            _graphics.plot_subdomains(ax, self.x, self.z, self.obstacles)
 
         # Subdomains
         for tag, color in zip(['X', 'W', 'A'], ['b', 'r', 'g']):
-            plot_subdomains(axes[0], self.x, self.z,
-                            [s for s in self.dxdomains if s.tag == tag],
-                            facecolor='y', edgecolor=color, legend=legend)
-            plot_subdomains(axes[1], self.x, self.z,
-                            [s for s in self.dzdomains if s.tag == tag],
-                            facecolor='y', edgecolor=color, legend=legend)
-            plot_subdomains(axes[0], self.x, self.z,
-                            [s for s in self.adomains if s.tag == tag],
-                            facecolor='y', edgecolor=color, legend=legend)
-            plot_subdomains(axes[1], self.x, self.z,
-                            [s for s in self.adomains if s.tag == tag],
-                            facecolor='y', edgecolor=color, legend=legend)
+            _graphics.plot_subdomains(axes[0], self.x, self.z,
+                                      [s for s in self.dxdomains if s.tag == tag],
+                                      facecolor='y', edgecolor=color, legend=legend)
+            _graphics.plot_subdomains(axes[1], self.x, self.z,
+                                      [s for s in self.dzdomains if s.tag == tag],
+                                      facecolor='y', edgecolor=color, legend=legend)
+            _graphics.plot_subdomains(axes[0], self.x, self.z,
+                                      [s for s in self.adomains if s.tag == tag],
+                                      facecolor='y', edgecolor=color, legend=legend)
+            _graphics.plot_subdomains(axes[1], self.x, self.z,
+                                      [s for s in self.adomains if s.tag == tag],
+                                      facecolor='y', edgecolor=color, legend=legend)
 
         if legend:
-            self._show_bc(axes, offset)
+            for ax in axes:
+                _graphics.bc_text(ax, self.x, self.z, self.dx, self.dz, self.bc,
+                                  bg='k', fg='w')
             print(self.domain)
 
         _plt.tight_layout()
 
-    def _show_bc(self, axes, offset):
-        """ Show text indicating each of the 4 bc of the domain. """
-
-        xloc = _np.array([self.x[0] - self.dx*offset/2,
-                          (self.x[-1] - _np.abs(self.x[0]))/2 + self.dx,
-                          self.x[-1] + self.dx,
-                          (self.x[-1] - _np.abs(self.x[0]))/2])
-
-        zloc = _np.array([(self.z[-1] - _np.abs(self.z[0]))/2,
-                          self.z[0] - self.dz*offset/1.25,
-                          (self.z[-1] - _np.abs(self.z[0]))/2,
-                          self.z[-1] + self.dz])
-
-        for bc, x, z in zip(self.bc, xloc, zloc):
-            for ax in axes:
-                ax.text(x, z, bc, color='r')
 
     def plot_grid(self, figsize=(9, 5), N=4, axis=False, pml=False, save=None):
         """ Grid representation.
@@ -257,8 +199,8 @@ class Mesh:
         fig, ax_c = _plt.subplots(figsize=figsize)
         fig.subplots_adjust(.1, .1, .95, .95)
 
-        plot_subdomains(ax_c, self.x, self.z, self.obstacles, facecolor='k')
-        plot_grid(ax_c, self.x, self.z, N)
+        _graphics.plot_subdomains(ax_c, self.x, self.z, self.obstacles, facecolor='k')
+        _graphics.plot_grid(ax_c, self.x, self.z, N)
 
         ax_c.set_xlim(self.x.min(), self.x.max())
         ax_c.set_ylim(self.z.min(), self.z.max())
@@ -267,7 +209,7 @@ class Mesh:
         ax_c.set_aspect('equal')
 
         if pml:
-            plot_pml(ax_c, self.x, self.z, self.bc, self.Npml)
+            _graphics.plot_pml(ax_c, self.x, self.z, self.bc, self.Npml)
 
         if axis:
             divider = _axes_grid1.make_axes_locatable(ax_c)
@@ -630,16 +572,16 @@ class CurvilinearMesh(Mesh):
         """
 
         _, axes = _plt.subplots(ncols=2, figsize=(9, 4))
-        plot_grid(axes[0], self.xn, self.zn)
-        plot_grid(axes[1], self.xp, self.zp)
+        _graphics.plot_grid(axes[0], self.xn, self.zn)
+        _graphics.plot_grid(axes[1], self.xp, self.zp)
         axes[0].set(title='Numerical Domain')
         axes[1].set(title='Physical Domain')
 
-        plot_subdomains(axes[0], self.x, self.z, self.obstacles,
-                        edgecolor=edgecolor, facecolor=facecolor, alpha=alpha)
-        plot_subdomains(axes[1], self.xp, self.zp, self.obstacles,
-                        edgecolor=edgecolor, facecolor=facecolor, alpha=alpha,
-                        curvilinear=True)
+        _graphics.plot_subdomains(axes[0], self.x, self.z, self.obstacles,
+                                  edgecolor=edgecolor, facecolor=facecolor, alpha=alpha)
+        _graphics.plot_subdomains(axes[1], self.xp, self.zp, self.obstacles,
+                                  edgecolor=edgecolor, facecolor=facecolor, alpha=alpha,
+                                  curvilinear=True)
 
         for ax in axes:
             ax.set_aspect('equal')

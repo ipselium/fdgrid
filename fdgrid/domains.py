@@ -22,7 +22,6 @@
 # Creation Date : 2019-02-13 - 07:54:54
 #
 # pylint: disable=too-many-public-methods
-# pylint: disable=too-many-locals
 # pylint: disable=attribute-defined-outside-init
 """
 -----------
@@ -37,7 +36,7 @@ It also provides the fonction `plot_subdomain`.
 @author: Cyril Desjouy
 """
 
-__all__ = ['plot_subdomains', 'plot_pml', 'Domain', 'Subdomain']
+__all__ = ['Domain', 'Subdomain']
 
 import copy as _copy
 import itertools as _itertools
@@ -48,126 +47,7 @@ import dataclasses as _dataclasses
 import fdgrid.utils as _utils
 
 
-def plot_subdomains(ax, x, z, domain, legend=False,
-                    facecolor='k', edgecolor='k', alpha=0.5, curvilinear=False):
-    """ Plot subdomain in ax.
 
-    Obstacle can be a list of coordinate lists or a Domain object.
-
-    Parameters
-    ----------
-
-    x, z : 1D arrays. x and z coordinates
-    ax : Matplotlib axe where the subdomains will be plotted.
-    subdomains : List of coordinates or Domain object.
-    facecolor : Fill color. Optional.
-    edgecolor ; Line color. Optional.
-    curvilinear : Boolean. Optional.
-    """
-
-    for sub in domain:
-
-        if curvilinear and isinstance(sub, Subdomain):
-            for i in range(2):
-                ax.plot(x[sub.rx, sub.iz[i]], z[sub.rx, sub.iz[i]],
-                        color=edgecolor, linewidth=3)
-                ax.plot(x[sub.ix[i], sub.rz], z[sub.ix[i], sub.rz],
-                        color=edgecolor, linewidth=3)
-
-            ax.fill_between(x[sub.rx, sub.iz[0]],
-                            z[sub.rx, sub.iz[0]],
-                            z[sub.rx, sub.iz[1]], color=facecolor, alpha=alpha)
-
-        elif curvilinear and isinstance(sub, (_np.ndarray, list)):
-            ax.plot(x[sub[0], sub[1]:sub[3]+1], z[sub[0], sub[1]:sub[3]+1],
-                    color=edgecolor, linewidth=3)
-            ax.plot(x[sub[2], sub[1]:sub[3]+1], z[sub[2], sub[1]:sub[3]+1],
-                    color=edgecolor, linewidth=3)
-
-            ax.plot(x[sub[0]:sub[2]+1, sub[1]], z[sub[0]:sub[2]+1, sub[1]],
-                    color=edgecolor, linewidth=3)
-            ax.plot(x[sub[0]:sub[2]+1, sub[3]], z[sub[0]:sub[2]+1, sub[3]],
-                    color=edgecolor, linewidth=3)
-
-        elif isinstance(sub, (_np.ndarray, list, Subdomain)):
-            if isinstance(sub, (_np.ndarray, list)):
-                origin = (x[sub[0]], z[sub[1]])
-                width = x[sub[2]] - x[sub[0]]
-                height = z[sub[3]] - z[sub[1]]
-            elif isinstance(sub, Subdomain):
-                origin = (x[sub.ix[0]], z[sub.iz[0]])
-                width = x[sub.ix[1]] - x[sub.ix[0]]
-                height = z[sub.iz[1]] - z[sub.iz[0]]
-
-            rect = _patches.Rectangle(origin, width, height, linewidth=3,
-                                      edgecolor=edgecolor, facecolor=facecolor,
-                                      alpha=alpha)
-            ax.add_patch(rect)
-
-        else:
-            msg = 'Each element of subtacle must be a list, array, or Subdomain object'
-            raise ValueError(msg)
-
-        if legend and isinstance(sub, Subdomain):
-            if sub.tag in ['X', 'A', 'W']:
-                dx = x[sub.center[0]] - x[sub.center[0] - 1]
-                dz = x[sub.center[1]] - x[sub.center[1] - 1]
-                ax.text(x[sub.center[0]]-dx*len(sub.tag)*6,
-                        z[sub.center[1]]-dz*3, sub.key, color=edgecolor)
-
-
-def _pml_text(ax, r):
-    rx, ry = r.get_xy()
-    cx = rx + r.get_width()/2.0
-    cy = ry + r.get_height()/2.0
-    ax.annotate('PML', (cx, cy), color='k', weight='bold',
-                fontsize=12, ha='center', va='center', rotation=90)
-
-
-def plot_pml(ax, x, z, bc, Npml, ecolor='k', fcolor='k'):
-    """ Display PML areas. """
-
-    alpha = 0.1
-
-    if bc[0] == 'A':
-        rect = _patches.Rectangle((x[0], z[0]),
-                                  x[Npml] - x[0],
-                                  z[-1] - z[0],
-                                  linewidth=3,
-                                  edgecolor=ecolor, facecolor=fcolor,
-                                  alpha=alpha)
-        _pml_text(ax, rect)
-        ax.add_patch(rect)
-
-    if bc[1] == 'A':
-        rect = _patches.Rectangle((x[0], z[0]),
-                                  z[Npml] - z[0],
-                                  x[-1] - x[0],
-                                  linewidth=3,
-                                  edgecolor=ecolor, facecolor=fcolor,
-                                  alpha=alpha)
-        _pml_text(ax, rect)
-        ax.add_patch(rect)
-
-    if bc[2] == 'A':
-        rect = _patches.Rectangle((x[-Npml], z[0]),
-                                  x[-1] - x[-Npml],
-                                  z[-1] - z[0],
-                                  linewidth=3,
-                                  edgecolor=ecolor, facecolor=fcolor,
-                                  alpha=alpha)
-        _pml_text(ax, rect)
-        ax.add_patch(rect)
-
-    if bc[3] == 'A':
-        rect = _patches.Rectangle((x[0], z[0]),
-                                  z[-1] - z[-Npml],
-                                  x[-1] - x[0],
-                                  linewidth=3,
-                                  edgecolor=ecolor, facecolor=fcolor,
-                                  alpha=alpha)
-        _pml_text(ax, rect)
-        ax.add_patch(rect)
 
 class Domain:
     """ Set of Subdomain objects.
