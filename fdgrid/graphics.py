@@ -187,8 +187,8 @@ def plot_pml(ax, x, z, bc, Npml, ecolor='k', fcolor='k'):
 
     if bc[1] == 'A':
         rect = _patches.Rectangle((x[0], z[0]),
-                                  z[Npml] - z[0],
                                   x[-1] - x[0],
+                                  z[Npml] - z[0],
                                   linewidth=3,
                                   edgecolor=ecolor, facecolor=fcolor,
                                   alpha=alpha)
@@ -206,9 +206,9 @@ def plot_pml(ax, x, z, bc, Npml, ecolor='k', fcolor='k'):
         ax.add_patch(rect)
 
     if bc[3] == 'A':
-        rect = _patches.Rectangle((x[0], z[0]),
-                                  z[-1] - z[-Npml],
+        rect = _patches.Rectangle((x[0], z[-Npml]),
                                   x[-1] - x[0],
+                                  z[-1] - z[-Npml],
                                   linewidth=3,
                                   edgecolor=ecolor, facecolor=fcolor,
                                   alpha=alpha)

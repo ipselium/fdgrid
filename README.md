@@ -41,11 +41,13 @@
 
 ### Installation
 
+Clone the repo and :
+
 ```
 python setup.py install
 ```
 
-or
+or install via Pypi :
 
 ```
 pip install fdgrid
@@ -112,7 +114,7 @@ obstacles = templates.testcase1(*shape)
 msh = mesh.AdaptativeMesh(shape, steps, (ix0, iz0), obstacles=obstacles, bc=bc)
 
 # Show
-msh.plot_grid(N=8)
+msh.plot_grid(axis=True, N=8)
 ```
 
 ![adaptative mesh](https://github.com/ipselium/fdgrid/blob/master/docs/adaptative.png)
