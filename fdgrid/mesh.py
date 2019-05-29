@@ -141,16 +141,18 @@ class Mesh:
         if self.ix0 > self.nx or self.iz0 > self.nz:
             raise _exceptions.GridError("Origin of the domain must be in the domain")
 
-    def plot_domains(self, legend=False, N=4, size=(9, 18)):
+    def plot_domains(self, legend=False, N=4, figsize=(9, 18), filename=None):
         """ Plot a scheme of the computation domain higlighting the subdomains.
 
             Parameters
             ----------
-            legend: Show mesh legend
-            N: Keep one point over N
+            legend: Show mesh legend. bool
+            N: Keep one point over N. int
+            filename: save to filename. string
+            figsize: size of the figure. tuple
         """
 
-        _, axes = _plt.subplots(2, 1, figsize=size)
+        _, axes = _plt.subplots(2, 1, figsize=figsize)
 
         # Grid & Obstacles
         for ax in axes:
@@ -184,14 +186,24 @@ class Mesh:
 
         _plt.tight_layout()
 
+        if isinstance(filename, str):
+            _plt.savefig(filename)
 
-    def plot_grid(self, figsize=(9, 5), N=4, axis=False, pml=False, save=None):
+    def plot_grid(self, figsize=(9, 5), N=4, axis=False, pml=False, filename=None):
         """ Grid representation.
 
-        BUG
-        ---
-        Note that the curves dx'/dx are not representative on the edges because
-        of the gradient.
+            Parameters
+            ----------
+            legend: Show mesh legend. bool
+            N: Keep one point over N. int
+            filename: save to filename. string
+            figsize: size of the figure. tuple
+            pml: Show PML. bool
+
+            BUG
+            ---
+            Note that the curves dx'/dx are not representative on the edges because
+            of the gradient.
         """
 
         nullfmt = _ticker.NullFormatter()         # no labels
@@ -218,8 +230,6 @@ class Mesh:
             ax_za = divider.append_axes('right', size='15%', pad=0.1)
             ax_zb = divider.append_axes('right', size='10%', pad=0.1)
 
-
-
             ax_xa.plot(self.x, _np.gradient(self.x)/self.dx, 'ko')
             ax_xa.set_ylabel(r"$x'/dx$")
             ax_xb.plot(self.x, range(len(self.x)), 'k', linewidth=2)
@@ -244,11 +254,17 @@ class Mesh:
                     if j[-1] == 'o':
                         ax.axhspan(self.z[j[0]], self.z[j[1]], facecolor='k', alpha=0.5)
 
-        if isinstance(save, str):
-            _plt.savefig(save)
+        if isinstance(filename, str):
+            _plt.savefig(filename)
 
-    def plot_xz(self, figsize=(9, 4)):
-        """ Plot mesh """
+    def plot_xz(self, figsize=(9, 4), filename=None):
+        """ Plot x & z axis.
+
+            Parameters
+            ----------
+            filename: save to filename. string
+            figsize: size of the figure. tuple
+        """
 
         _, axes = _plt.subplots(2, 2, figsize=figsize)
         axes[0, 0].plot(self.x, 'k*')
@@ -275,6 +291,9 @@ class Mesh:
                         ax.axvspan(j[0], j[1], facecolor='k', alpha=0.5)
 
         _plt.tight_layout()
+
+        if isinstance(filename, str):
+            _plt.savefig(filename)
 
     def get_obstacles(self):
         """ Get a list of the coordinates of all obstacles. """
@@ -560,18 +579,22 @@ class CurvilinearMesh(Mesh):
 
         super().__init__(shape, step, origin, bc, obstacles, Npml, stencil)
 
-    def plot_physical(self, edgecolor='k', facecolor='k', alpha=0.5, legend=False):
+    def plot_physical(self, figsize=(9, 4), legend=False, pml=False, filename=None):
         """ Plot physical and numerical domains.
 
-        Parameters
-        ----------
-
-        edgecolor : Line color. Optional.
-        facecolor : Fill color. Optional.
-        alpha : Transparency. Optional.
+            Parameters
+            ----------
+            legend: Show mesh legend. bool
+            filename: save to filename. string
+            figsize: size of the figure. tuple
+            pml: Show PML. bool
         """
 
-        _, axes = _plt.subplots(ncols=2, figsize=(9, 4))
+        edgecolor = 'k'
+        facecolor = 'k'
+        alpha = 0.5
+
+        _, axes = _plt.subplots(ncols=2, figsize=figsize)
         _graphics.plot_grid(axes[0], self.xn, self.zn)
         _graphics.plot_grid(axes[1], self.xp, self.zp)
         axes[0].set(title='Numerical Domain')
@@ -584,12 +607,19 @@ class CurvilinearMesh(Mesh):
                                   legend=legend,
                                   edgecolor=edgecolor, facecolor=facecolor, alpha=alpha)
 
+        if pml:
+            _graphics.plot_pml(axes[0], self.x, self.z, self.bc, self.Npml)
+            _graphics.plot_pml(axes[1], self.xp, self.zp, self.bc, self.Npml)
+
         for ax in axes:
             ax.set_aspect('equal')
             ax.set_xlabel(r'x [m]')
             ax.set_ylabel(r'z [m]')
 
         _plt.tight_layout()
+
+        if isinstance(filename, str):
+            _plt.savefig(filename)
 
     def _make_grid(self):
 

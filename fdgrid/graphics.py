@@ -258,7 +258,7 @@ def _plot_pml_dim2(ax, x, z, bc, Npml, edgecolor, facecolor, alpha):
                                    edgecolor=edgecolor, facecolor=facecolor,
                                    alpha=alpha)
 
-        patch_text(ax, patch, 'PML')
+        patch_text(ax, patch, 'PML', rotation=90)
         ax.add_patch(patch)
 
     if bc[1] == 'A':
@@ -292,7 +292,7 @@ def _plot_pml_dim2(ax, x, z, bc, Npml, edgecolor, facecolor, alpha):
                                    edgecolor=edgecolor, facecolor=facecolor,
                                    alpha=alpha)
 
-        patch_text(ax, patch, 'PML')
+        patch_text(ax, patch, 'PML', rotation=90)
         ax.add_patch(patch)
 
     if bc[3] == 'A':
