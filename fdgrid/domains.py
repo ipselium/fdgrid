@@ -47,8 +47,6 @@ import dataclasses as _dataclasses
 import fdgrid.utils as _utils
 
 
-
-
 class Domain:
     """ Set of Subdomain objects.
 
@@ -56,7 +54,7 @@ class Domain:
     ----------
 
     shape : Size of the domain. Must be a 2 elements tuple
-    data : list of Subdomain objects
+    data : list of Subdomain objects or coordinates
 
     """
 
@@ -65,7 +63,9 @@ class Domain:
         self.shape = shape
         self.nx, self.nz = shape
         self._data = dict({})
-        if isinstance(data, (list, tuple)):
+        if data and isinstance(data, (list, tuple)):
+            if not isinstance(data[0], Subdomain):
+                data = self._subdomain_from_list(data)
             for sub in data:
                 if not sub.key:
                     sub.key = self._key
@@ -76,6 +76,13 @@ class Domain:
 
         # Domain counter
         self._n = 0
+
+    @staticmethod
+    def _subdomain_from_list(data):
+        subs = []
+        for c in data:
+            subs.append(Subdomain(c))
+        return subs
 
     def show(self, legend=False, fcolor='b', ecolor='y'):
         """ Represent the Subdomains. """

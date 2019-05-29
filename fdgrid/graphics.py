@@ -29,8 +29,8 @@ Figure setup functions
 """
 
 import numpy as _np
-import matplotlib.patches as _patches
-from fdgrid import utils as _utils, Subdomain
+from matplotlib import patches as _patches, path as _path
+from fdgrid import utils as _utils, Subdomain, Domain
 
 
 def plot_grid(ax, x, z, N=8):
@@ -80,12 +80,19 @@ def patch_text(ax, patch, text, rotation=0, color='k'):
     ----------
 
     ax : matplotlib axe
-    patch : matplotlib patch
+    patch : matplotlib patch (Only Rectangle and PathPatch for now)
     text : string to display in patch
     """
-    rx, ry = patch.get_xy()
-    cx = rx + patch.get_width()/2.0
-    cy = ry + patch.get_height()/2.0
+
+    if isinstance(patch, _patches.Rectangle):
+        rx, ry = patch.get_xy()
+        cx = rx + patch.get_width()/2.0
+        cy = ry + patch.get_height()/2.0
+
+    elif isinstance(patch, _patches.PathPatch):
+        c = patch.get_path().get_extents().get_points()
+        cx, cy = (c[0][0] + c[1][0])/2, (c[0][1] + c[1][1])/2
+
     ax.annotate(text, (cx, cy), color=color, weight='bold',
                 fontsize=12, ha='center', va='center', rotation=rotation)
 
@@ -105,8 +112,20 @@ def bc_text(ax, x, z, dx, dz, bc, offset=10, bg='w', fg='k'):
         ax.add_patch(rect)
 
 
-def plot_subdomains(ax, x, z, domain, legend=False,
-                    facecolor='k', edgecolor='k', alpha=0.5, curvilinear=False):
+def _check_domain(x, z, domain):
+
+    if isinstance(domain, (_np.ndarray, list, tuple)):
+        if isinstance(domain, _np.ndarray):
+            domain = domain.tolist()
+        domain = Domain((x.shape[0], z.shape[0]), data=domain)
+
+    if not isinstance(domain, Domain):
+        raise ValueError('domain must be a Domain, list, tuple or array object')
+
+    return domain
+
+
+def plot_subdomains(ax, x, z, domain, legend=False, facecolor='k', edgecolor='k', alpha=0.5):
     """ Plot subdomain in ax.
 
     Obstacle can be a list of coordinate lists or a Domain object.
@@ -116,65 +135,71 @@ def plot_subdomains(ax, x, z, domain, legend=False,
 
     x, z : 1D arrays. x and z coordinates
     ax : Matplotlib axe where the subdomains will be plotted.
-    subdomains : List of coordinates or Domain object.
+    domain : List/Tuple of coordinates or Domain object.
     facecolor : Fill color. Optional.
     edgecolor ; Line color. Optional.
     curvilinear : Boolean. Optional.
     """
 
+    domain = _check_domain(x, z, domain)
+
+    if len(x.shape) > 1 and len(z.shape) > 1:
+        dim = 2
+        # Edges
+        ax.plot(x[0, :], z[0, :], 'k', linewidth=3)
+        ax.plot(x[-1, :], z[-1, :], 'k', linewidth=3)
+        ax.plot(x[:, 0], z[:, 0], 'k', linewidth=3)
+        ax.plot(x[:, -1], z[:, -1], 'k', linewidth=3)
+    else:
+        dim = 1
+        edges = _patches.Rectangle((x[0], z[0]), x[-1]-x[0], z[-1]-z[0],
+                                   linewidth=3, fill=None)
+        ax.add_patch(edges)
+
     for sub in domain:
 
-        if curvilinear and isinstance(sub, Subdomain):
-            for i in range(2):
-                ax.plot(x[sub.rx, sub.iz[i]], z[sub.rx, sub.iz[i]],
-                        color=edgecolor, linewidth=3)
-                ax.plot(x[sub.ix[i], sub.rz], z[sub.ix[i], sub.rz],
-                        color=edgecolor, linewidth=3)
-
-            ax.fill_between(x[sub.rx, sub.iz[0]],
-                            z[sub.rx, sub.iz[0]],
-                            z[sub.rx, sub.iz[1]], color=facecolor, alpha=alpha)
-
-        elif curvilinear and isinstance(sub, (_np.ndarray, list)):
-            ax.plot(x[sub[0], sub[1]:sub[3]+1], z[sub[0], sub[1]:sub[3]+1],
-                    color=edgecolor, linewidth=3)
-            ax.plot(x[sub[2], sub[1]:sub[3]+1], z[sub[2], sub[1]:sub[3]+1],
-                    color=edgecolor, linewidth=3)
-
-            ax.plot(x[sub[0]:sub[2]+1, sub[1]], z[sub[0]:sub[2]+1, sub[1]],
-                    color=edgecolor, linewidth=3)
-            ax.plot(x[sub[0]:sub[2]+1, sub[3]], z[sub[0]:sub[2]+1, sub[3]],
-                    color=edgecolor, linewidth=3)
-
-        elif isinstance(sub, (_np.ndarray, list, Subdomain)):
-            if isinstance(sub, (_np.ndarray, list)):
-                origin = (x[sub[0]], z[sub[1]])
-                width = x[sub[2]] - x[sub[0]]
-                height = z[sub[3]] - z[sub[1]]
-            elif isinstance(sub, Subdomain):
-                origin = (x[sub.ix[0]], z[sub.iz[0]])
-                width = x[sub.ix[1]] - x[sub.ix[0]]
-                height = z[sub.iz[1]] - z[sub.iz[0]]
+        if dim == 1:
+            origin = (x[sub.ix[0]], z[sub.iz[0]])
+            width = x[sub.ix[1]] - x[sub.ix[0]]
+            height = z[sub.iz[1]] - z[sub.iz[0]]
 
             rect = _patches.Rectangle(origin, width, height, linewidth=3,
                                       edgecolor=edgecolor, facecolor=facecolor,
                                       alpha=alpha)
             ax.add_patch(rect)
 
-        else:
-            msg = 'Each element of subtacle must be a list, array, or Subdomain object'
-            raise ValueError(msg)
+        elif dim == 2:
+
+            a = [(x[i, sub.iz[0]], z[i, sub.iz[0]]) for i in sub.rx][::-1]
+            b = [(x[sub.ix[0], i], z[sub.ix[0], i]) for i in sub.rz]
+            c = [(x[i, sub.iz[1]], z[i, sub.iz[1]]) for i in sub.rx]
+            d = [(x[sub.ix[1], i], z[sub.ix[1], i]) for i in sub.rz]
+
+            verts = a + b + c + d
+            codes = [_path.Path.MOVETO] + \
+                    (len(verts)-2)*[_path.Path.LINETO] + \
+                    [_path.Path.CLOSEPOLY]
+            path = _path.Path(verts, codes)
+            patch = _patches.PathPatch(path, linewidth=3,
+                                       edgecolor=edgecolor, facecolor=facecolor,
+                                       alpha=alpha)
+            ax.add_patch(patch)
 
         if legend and isinstance(sub, Subdomain):
             if sub.tag in ['X', 'A', 'W']:
                 patch_text(ax, rect, sub.key, color=edgecolor)
 
 
-def plot_pml(ax, x, z, bc, Npml, ecolor='k', fcolor='k'):
+def plot_pml(ax, x, z, bc, Npml, ecolor='k', fcolor='k', alpha=0.1):
     """ Display PML areas. """
 
-    alpha = 0.1
+    if len(x.shape) > 1 and len(z.shape) > 1:
+        _plot_pml_dim2(ax, x, z, bc, Npml, ecolor, fcolor, alpha)
+    else:
+        _plot_pml_dim1(ax, x, z, bc, Npml, ecolor, fcolor, alpha)
 
+
+def _plot_pml_dim1(ax, x, z, bc, Npml, ecolor, fcolor, alpha):
     if bc[0] == 'A':
         rect = _patches.Rectangle((x[0], z[0]),
                                   x[Npml] - x[0],
@@ -214,3 +239,75 @@ def plot_pml(ax, x, z, bc, Npml, ecolor='k', fcolor='k'):
                                   alpha=alpha)
         patch_text(ax, rect, 'PML')
         ax.add_patch(rect)
+
+
+def _plot_pml_dim2(ax, x, z, bc, Npml, edgecolor, facecolor, alpha):
+
+    if bc[0] == 'A':
+        a = [(x[i, 0], z[i, 0]) for i in range(Npml)]
+        b = [(x[Npml, i], z[Npml, i]) for i in range(z.shape[1])]
+        c = [(x[i, -1], z[i, -1]) for i in range(Npml, -1, -1)]
+        d = [(x[0, i], z[0, i]) for i in range(z.shape[1]-1, -1, -1)]
+
+        verts = a + b + c + d
+        codes = [_path.Path.MOVETO] + \
+                (len(verts)-2)*[_path.Path.LINETO] + \
+                [_path.Path.CLOSEPOLY]
+        path = _path.Path(verts, codes)
+        patch = _patches.PathPatch(path, linewidth=3,
+                                   edgecolor=edgecolor, facecolor=facecolor,
+                                   alpha=alpha)
+
+        patch_text(ax, patch, 'PML')
+        ax.add_patch(patch)
+
+    if bc[1] == 'A':
+        a = [(x[i, 0], z[i, 0]) for i in range(x.shape[0])]
+        b = [(x[-1, i], z[-1, i]) for i in range(Npml)]
+        c = [(x[i, Npml], z[i, Npml]) for i in range(x.shape[0]-1, -1, -1)]
+        d = [(x[0, i], z[0, i]) for i in range(Npml-1, -1, -1)]
+        verts = a + b + c + d
+        codes = [_path.Path.MOVETO] + \
+                (len(verts)-2)*[_path.Path.LINETO] + \
+                [_path.Path.CLOSEPOLY]
+        path = _path.Path(verts, codes)
+        patch = _patches.PathPatch(path, linewidth=3,
+                                   edgecolor=edgecolor, facecolor=facecolor,
+                                   alpha=alpha)
+
+        patch_text(ax, patch, 'PML')
+        ax.add_patch(patch)
+
+    if bc[2] == 'A':
+        a = [(x[i, 0], z[i, 0]) for i in range(x.shape[0] - Npml, x.shape[0])]
+        b = [(x[x.shape[0] - Npml, i], z[x.shape[0] - Npml, i]) for i in range(z.shape[1])]
+        c = [(x[i, -1], z[i, -1]) for i in range(x.shape[0]-1, x.shape[0] - Npml, -1)]
+        d = [(x[-1, i], z[-1, i]) for i in range(z.shape[1]-1, -1, -1)]
+        verts = a + b + c + d
+        codes = [_path.Path.MOVETO] + \
+                (len(verts)-2)*[_path.Path.LINETO] + \
+                [_path.Path.CLOSEPOLY]
+        path = _path.Path(verts, codes)
+        patch = _patches.PathPatch(path, linewidth=3,
+                                   edgecolor=edgecolor, facecolor=facecolor,
+                                   alpha=alpha)
+
+        patch_text(ax, patch, 'PML')
+        ax.add_patch(patch)
+
+    if bc[3] == 'A':
+        a = [(x[i, z.shape[1]-Npml], z[i, z.shape[1]-Npml]) for i in range(x.shape[0])]
+        b = [(x[-1, i], z[-1, i]) for i in range(z.shape[1] - Npml, z.shape[1])]
+        c = [(x[i, -1], z[i, -1]) for i in range(x.shape[0]-1, -1, -1)]
+        d = [(x[0, i], z[0, i]) for i in range(z.shape[1]-1, z.shape[1]-Npml, -1)]
+        verts = a + b + c + d
+        codes = [_path.Path.MOVETO] + \
+                (len(verts)-2)*[_path.Path.LINETO] + \
+                [_path.Path.CLOSEPOLY]
+        path = _path.Path(verts, codes)
+        patch = _patches.PathPatch(path, linewidth=3,
+                                   edgecolor=edgecolor, facecolor=facecolor,
+                                   alpha=alpha)
+
+        patch_text(ax, patch, 'PML')
+        ax.add_patch(patch)

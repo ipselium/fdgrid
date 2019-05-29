@@ -560,7 +560,7 @@ class CurvilinearMesh(Mesh):
 
         super().__init__(shape, step, origin, bc, obstacles, Npml, stencil)
 
-    def plot_physical(self, edgecolor='k', facecolor='k', alpha=0.5):
+    def plot_physical(self, edgecolor='k', facecolor='k', alpha=0.5, legend=False):
         """ Plot physical and numerical domains.
 
         Parameters
@@ -578,10 +578,11 @@ class CurvilinearMesh(Mesh):
         axes[1].set(title='Physical Domain')
 
         _graphics.plot_subdomains(axes[0], self.x, self.z, self.obstacles,
+                                  legend=legend,
                                   edgecolor=edgecolor, facecolor=facecolor, alpha=alpha)
         _graphics.plot_subdomains(axes[1], self.xp, self.zp, self.obstacles,
-                                  edgecolor=edgecolor, facecolor=facecolor, alpha=alpha,
-                                  curvilinear=True)
+                                  legend=legend,
+                                  edgecolor=edgecolor, facecolor=facecolor, alpha=alpha)
 
         for ax in axes:
             ax.set_aspect('equal')
