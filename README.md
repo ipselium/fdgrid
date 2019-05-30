@@ -91,7 +91,7 @@ mesh2 = mesh.Mesh((nx, nz), (dx, dz), (ix0, iz0), obstacles=custom_obstacles(nx,
 mesh2.plot_grid(pml=True)
 ```
 
-![domains](https://github.com/ipselium/fdgrid/blob/master/docs/domains.png)
+![domains](https://github.com/ipselium/fdgrid/blob/master/docs/regular.png)
 
 
 
