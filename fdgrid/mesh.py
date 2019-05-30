@@ -308,8 +308,9 @@ class Mesh:
         s = 'Cartesian {}x{} points grid with {} boundary conditions:\n\n'
         s += '\t* Spatial step : {}\n'.format((self.dx, self.dz))
         s += '\t* Origin       : {}\n'.format((self.ix0, self.iz0))
-        s += '\t* Points in PML: {}\n'.format(self.Npml)
-        s += '\t* Max stencil   : {}\n'.format(self.stencil)
+        if 'A' in self.bc:
+            s += '\t* Points in PML: {}\n'.format(self.Npml)
+        s += '\t* Max stencil  : {}\n'.format(self.stencil)
 
         return s.format(self.nx, self.nz, self.bc)
 
@@ -545,7 +546,8 @@ class AdaptativeMesh(Mesh):
         s = 'Adaptative cartesian {}x{} points grid with {} boundary conditions:\n\n'
         s += '\t* Spatial step  : {}\n'.format((self.dx, self.dz))
         s += '\t* Origin        : {}\n'.format((self.ix0, self.iz0))
-        s += '\t* Points in PML : {}\n'.format(self.Npml)
+        if 'A' in self.bc:
+            s += '\t* Points in PML : {}\n'.format(self.Npml)
         s += '\t* Max stencil   : {}\n'.format(self.stencil)
         s += '\t* Dilatation over {} pts  : {:.1f} %\n'.format(self.N, (1-self.amin)*100)
 
@@ -663,7 +665,8 @@ class CurvilinearMesh(Mesh):
         s = 'Curvilinear {}x{} points grid with {} boundary conditions:\n\n'
         s += '\t* Spatial step  : {}\n'.format((self.dx, self.dz))
         s += '\t* Origin        : {}\n'.format((self.ix0, self.iz0))
-        s += '\t* Points in PML : {}\n'.format(self.Npml)
+        if 'A' in self.bc:
+            s += '\t* Points in PML : {}\n'.format(self.Npml)
         s += '\t* Max stencil   : {}\n'.format(self.stencil)
 
         return s.format(self.nx, self.nz, self.bc)
