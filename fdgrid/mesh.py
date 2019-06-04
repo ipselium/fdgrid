@@ -257,6 +257,11 @@ class Mesh:
         if isinstance(filename, str):
             _plt.savefig(filename)
 
+    def plot_physical(self, figsize=(9, 4), legend=False, pml=False, filename=None):
+        """ Plot physical grid. """
+
+        self.plot_grid(figsize=figsize, pml=pml, filename=filename)
+
     def plot_xz(self, figsize=(9, 4), filename=None):
         """ Plot x & z axis.
 
