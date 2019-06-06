@@ -58,14 +58,48 @@ pip install fdgrid
 
 ## Classical use
 
-### Create set of obstacles
+### Construction rules
+
+* Boundary conditions (**bc**) : Rules raising `BoundaryConditionError`
+  exception if not respected
+
+	* **bc** of the domain must be a combination of **'ZRAP'** as for
+	  (**Z**)impedance, (**R**)igid, (**A**)bsorbing, and (**P**)eriodic
+	* **bc** of each `Obstacle` object must be a combination of
+	  (**Z**)impedance, (**R**)igid, (U) x-velocity, (V) z-velocity, (W) x
+	  & z velocities
+	* If periodic (**P**) is chosen as boundary condition for an edge of
+	  the domain, '**P**' must also be chosen as boundary condition for the
+	  edge facing it
+
+* Grid construction : Rules raising `GridError` exception if not respected
+
+	* The number of points of the **PML** must be larger than this of the
+	  stencil, otherwise `GridError` exception will be raised
+	* Origin of the domain must be in the domain
+	* For curvilinear meshes, geometric conservation laws must be verified
+	  (variable change must remains soft)
+
+* Obstacle location: Rules raising `CloseObstacleError` exception if not respected
+
+	* Two obstacles cannot be close to a distance of less than twice the size of
+	  the stencil that has been declared (11 by default) **except** if they
+	  have a common edge
+	* An obstacle cannot sit astride an (**A**)borbing subdomain and a
+	  regular subdomain
+	* If an obstacle is located inside an (**A**)bsorbing subdomain (whose
+	  width is defined by `Npml`), an edge of this obstacle must
+	  correspond to the edge of the domain.
+
+### Creation of set of obstacles
 
 `Domain` and `Obstacle` objects can be used to create sets of obstacles.
 
 * Use `Obstacle` to create an obstacle:
 
 	* First argument is a list of coordinates as *[left, bottom, right, top]*
-	* Second argument is the boundary conditions [*(R)igid, (U) u velocity, (V) v velocity, (W) u & v velocities, (Z)impedance*]
+	* Second argument is the boundary conditions [*(R)igid, (U) x-velocity,
+	  (V) z-velocity, (W) x & z velocities, (Z)impedance*]
 
 * Use `Domain` to gather all `Obstacle` objects:
 
@@ -155,6 +189,25 @@ msh.plot_physical()
 
 
 ### Mesh with moving boundaries
+
+`Obstacle` instances inherit the `set_moving_bc` method. This method allows you
+to set moving edges. `set_moving_bc` can take as many arguments as the number
+of **U**, **V**, or **W** boundary. Each of these arguments must be a dictionary
+with the following keys :
+
+* `f`: the oscillation frequency
+* `A`: the oscillation amplitude
+* `func`: the oscillation profile of the boundary. For now, it can be 'sine' (sine
+  profile), 'tukey' (tapered cosine profile), or 'flat' (constant profile)
+* `kwargs`: special arguments than can be passed to `func`
+
+For the special case of **W** boundary, each value must be a tuple. For instance :
+
+```python
+obstacle.set_moving_bc({'f':(100, 200), 'A':(1, 0.5), 'func':('sine', 'flat')})
+```
+
+An example is given below:
 
 ```python
 from fdgrid import Mesh, Obstacle, Domain

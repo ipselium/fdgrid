@@ -136,7 +136,7 @@ class ComputationDomains:
 
         for obs in self._obstacles:
             if not _re.match(r'^[ZRUVW]+$', obs.bc):
-                msg = "Obstacle bc must be combination of 'ZRUV'"
+                msg = "Obstacle bc must be combination of 'ZRUVW'"
                 raise _exceptions.BoundaryConditionError(msg)
 
     def _fdomain_bc(self):

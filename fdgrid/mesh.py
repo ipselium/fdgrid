@@ -137,7 +137,7 @@ class Mesh:
     def _check_grid(self):
 
         if self.Npml < self.stencil:
-            raise _exceptions.GridError("Number of points of PML must be greater than stencil")
+            raise _exceptions.GridError("Number of points of PML must be larger than stencil")
 
         if self.ix0 > self.nx or self.iz0 > self.nz:
             raise _exceptions.GridError("Origin of the domain must be in the domain")
@@ -690,7 +690,7 @@ class CurvilinearMesh(Mesh):
         if _np.abs(gcl_x).max() > 1e-8 or _np.abs(gcl_z).max() > 1e-8:
             print('GCL (x) : ', _np.abs(gcl_x).max())
             print('GCL (z) : ', _np.abs(gcl_z).max())
-            raise ValueError('Geometric Conservation Laws not verified')
+            raise _exceptions.GridError('Geometric Conservation Laws not verified')
 
     def __str__(self):
         s = 'Curvilinear {}x{} points grid with {} boundary conditions:\n\n'
