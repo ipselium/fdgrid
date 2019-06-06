@@ -22,12 +22,15 @@
 
 * `CurvilinearMesh()`: Create a mesh using curvilinear coordinates
 
-***FDGrid*** provides two main objects to create computation domains and/or sets of obstacles:
+***FDGrid*** provides three main objects to create computation domains and/or sets of obstacles:
 
 * `Domain()` : Container for `Subdomain` objects
 
 * `Subdomain()` : Subdivision of the grid
 
+* `Obstacle()` : Subdomain subclass with moving boundary possibilities
+
+Some geometry templates can be found in the `template` module. Examples are gathered in the following and in `docs`.
 
 ## Requirements and installation
 
@@ -57,28 +60,27 @@ pip install fdgrid
 
 ### Create set of obstacles
 
-`Domain` and `Subdomain` objects can be used to create sets of obstacles.
+`Domain` and `Obstacle` objects can be used to create sets of obstacles.
 
-* Use `Subdomain` to create an obstacle:
+* Use `Obstacle` to create an obstacle:
 
 	* First argument is a list of coordinates as *[left, bottom, right, top]*
-	* Second argument is the boundary conditions [*(R)igid, (A)bsorbing, (Z)impedance*]
+	* Second argument is the boundary conditions [*(R)igid, (U) u velocity, (V) v velocity, (W) u & v velocities, (Z)impedance*]
 
-* Use `Domain` to gather all `Subdomain` objects:
+* Use `Domain` to gather all `Obstacle` objects:
 
 	* First argument is the shape of the grid (*tuple*)
-	* Keyword argument `data` is a list of `Subdomain` objects
+	* Keyword argument `data` is a list of `Obstacle` objects
 
 For instance:
 ```python
-from fdgrid import mesh, templates
-from fdgrid.domains import Subdomain, Domain
+from fdgrid import Mesh, Obstacle, Domain
 
 def custom_obstacles(nx, nz):
 
-    geo = [Subdomain([30, 20, 40, 40], 'RRRR'),
-           Subdomain([60, 20, 70, 40], 'RRRR'),
-           Subdomain([90, 20, 100, 40], 'RRRR')]
+    geo = [Obstacle([30, 20, 40, 40], 'RRRR'),
+           Obstacle([60, 20, 70, 40], 'RRRR'),
+           Obstacle([90, 20, 100, 40], 'RRRR')]
 
     return Domain((nx, nz), data=geo)
 
@@ -87,18 +89,18 @@ dx, dz = 1., 1.
 ix0, iz0 = 0, 0
 bc = 'ARAR'
 
-mesh2 = mesh.Mesh((nx, nz), (dx, dz), (ix0, iz0), obstacles=custom_obstacles(nx, nz), bc=bc)
-mesh2.plot_grid(pml=True)
+mesh = Mesh((nx, nz), (dx, dz), (ix0, iz0), obstacles=custom_obstacles(nx, nz), bc=bc)
+mesh.plot_grid(pml=True)
 ```
 
 ![domains](https://github.com/ipselium/fdgrid/blob/master/docs/regular.png)
 
 
 
-### Simple adaptative mesh example
+### Adaptative mesh example
 
 ```python
-from fdgrid import mesh, templates, domains
+from fdgrid import AdaptativeMesh, templates
 
 
 shape = (512, 256)	# Dimensions of the grid
@@ -111,7 +113,7 @@ bc = 'RRRR' 		# Boundary conditions : left, bottom, right, top.
 obstacles = templates.testcase1(*shape)
 
 # Generate AdaptativeMesh object
-msh = mesh.AdaptativeMesh(shape, steps, (ix0, iz0), obstacles=obstacles, bc=bc)
+msh = AdaptativeMesh(shape, steps, (ix0, iz0), obstacles=obstacles, bc=bc)
 
 # Show
 msh.plot_grid(axis=True, N=8)
@@ -120,10 +122,10 @@ msh.plot_grid(axis=True, N=8)
 ![adaptative mesh](https://github.com/ipselium/fdgrid/blob/master/docs/adaptative.png)
 
 
-### Simple curvilinear mesh example
+### Curvilinear mesh example
 
 ```python
-from fdgrid import mesh, templates
+from fdgrid import CurvilinearMesh, templates
 import numpy as np
 
 shape = (256, 256)       # Dimensions of the grid
@@ -143,11 +145,43 @@ def curv(xn, zn):
     return xp, zp
 
 # Generate CurvilinearMesh object
-msh = mesh.CurvilinearMesh(shape, steps, origin, obstacles=obstacles, bc=bc, fcurvxz=curv)
+msh = CurvilinearMesh(shape, steps, origin, obstacles=obstacles, bc=bc, fcurvxz=curv)
 
 # Show physical grid
 msh.plot_physical()
 ```
 
 ![curvilinear mesh](https://github.com/ipselium/fdgrid/blob/master/docs/curvilinear.png)
+
+
+### Mesh with moving boundaries
+
+```python
+from fdgrid import Mesh, Obstacle, Domain
+
+def custom_obstacles(nx, nz, size_percent=20):
+
+    size = int(min(nx, nz)*size_percent/100)
+
+    obs1 = Obstacle([int(nx/2)-size, int(nz/2)-size, int(nx/2)+size, int(nz/2)+size], 'UVRV')
+    obs2 = Obstacle([nx-11, 0, nx-1, nz-1], 'URRR')
+
+    obs1.set_moving_bc({'f': 70000, 'A': 1, 'func': 'sine'},
+                       {'f': 30000, 'A': -1, 'func': 'tukey'},
+                       {'f': 30000, 'A': 1, 'func': 'tukey'})
+    obs2.set_moving_bc({'f': 73000, 'A': -1, 'func': 'flat'})
+
+    return Domain((nx, nz), data=[obs1, obs2])
+
+
+nx, nz = 128, 96
+dx, dz = 1., 1.
+ix0, iz0 = 0, 0
+bc = 'RRRR'
+
+mesh = Mesh((nx, nz), (dx, dz), (ix0, iz0), obstacles=custom_obstacles(nx, nz), bc=bc)
+mesh.plot_grid(pml=True, legend=True, bc_profiles=True)
+```
+
+![moving boundaries](https://github.com/ipselium/fdgrid/blob/master/docs/moving_bc.png)
 

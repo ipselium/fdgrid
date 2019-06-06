@@ -22,6 +22,7 @@
 # Creation Date : 2019-02-13 - 07:54:54
 #
 # pylint: disable=too-many-public-methods
+# pylint: disable=too-few-public-methods
 # pylint: disable=attribute-defined-outside-init
 """
 -----------
@@ -29,6 +30,7 @@
 Module `domains` provides two classes:
 
     * Subdomain : dataclass for subdivisions of the computational domain
+    * Obstacle : Subdomain subclass with custom boundary possibilities
     * Domain : Container for Subdomain objects
 
 It also provides the fonction `plot_subdomain`.
@@ -36,7 +38,7 @@ It also provides the fonction `plot_subdomain`.
 @author: Cyril Desjouy
 """
 
-__all__ = ['Domain', 'Subdomain']
+__all__ = ['Domain', 'Subdomain', 'Obstacle']
 
 import copy as _copy
 import itertools as _itertools
@@ -789,3 +791,122 @@ class Subdomain:
                 tags[i] = 'W'
 
         return tags
+
+
+@_dataclasses.dataclass
+class Edges:
+    """ Edges description for moving boundaries. """
+
+    type: str
+    f: float
+    sx: slice
+    sz: slice
+    prf: _np.ndarray
+    axis: int
+
+
+class Obstacle(Subdomain):
+    """ Obstacle object.
+
+    Parameters
+    ----------
+
+    xz : Coordinates of the Subdomain : left, bottom, right, top
+    bc : Boundary conditions. Must be a string of 4 chacracter among 'A', 'R', 'Z' and 'P'
+    key : Key of the subdomain. Optional
+    axis : 0 or 1. The direction of the subdomain if relevant. Optional.
+    tag : str. The type of Subdomain. Optional
+    """
+
+    def __post_init__(self):
+        super().__post_init__()
+        self.edges = []
+
+    def set_moving_bc(self, *setup):
+        """ Set parameters for moving bc. """
+
+        self.setup = setup
+
+    def _parse_moving_bc(self, bc, setup):
+
+        if bc in ['U', 'V']:
+            func = getattr(self, setup['func'], self.flat)
+            return [bc], [func], [setup.get('f', 0)], \
+                    [setup.get('A', 0)], [setup.get('kwargs', dict())]
+
+        if bc == 'W':
+            func = (getattr(self, setup['func'][0], self.flat),
+                    getattr(self, setup['func'][1], self.flat))
+            return ['U', 'V'], func, setup.get('f', 0), \
+                    setup.get('A', 0), setup.get('kwargs', [dict(), dict()])
+
+        raise ValueError("Moving bc must be 'U', 'V', or 'W'")
+
+    def make_moving_bc(self, x, z):
+        """ Construct moving boundaries. """
+
+        if hasattr(self, 'setup'):
+
+            self.edges = []
+            nbc = 0
+
+            for i, bc in enumerate(self.bc):
+
+                if bc in ['U', 'V', 'W']:
+
+                    comp, func, f, A, kwargs = self._parse_moving_bc(bc, self.setup[nbc])
+
+                    for k, cp in enumerate(comp):
+
+                        if i%2 != 0:
+                            lst = [cp, f[k], self.sx, self.xz[i]]
+                            lst.append(func[k](x, self.sx, A[k], **kwargs[k]))
+                            lst.append(0)
+                        else:
+                            lst = [cp, f[k], self.xz[i], self.sz]
+                            lst.append(func[k](z, self.sz, A[k], **kwargs[k]))
+                            lst.append(1)
+
+                        self.edges.append(Edges(*lst))
+
+                    nbc += 1
+
+    @staticmethod
+    def sine(c, sc, A, **kwargs):
+        """ Sine profile. """
+
+        L = c[sc.stop-1] - c[sc.start]
+        n = kwargs.get('n', 1)
+        kL = 2*_np.pi/(n*L)
+
+        return A*_np.sin(kL*(c[sc] - c[sc.start]))
+
+    @staticmethod
+    def tukey(c, sc, A, **kwargs):
+        """ Tapered cosine profile. """
+
+        L = c[sc.stop-1] - c[sc.start]
+        N = sc.stop - sc.start
+
+        alpha = kwargs.get('alpha', 0.2)
+        edges = L*alpha/2
+
+        Nmin = max(1, abs(c - (c[sc.start] + edges)).argmin() - sc.start)
+        Nmax = min(N-1, abs(c - (c[sc.stop] - edges)).argmin() - sc.start)
+
+        nmin = _np.linspace(0, alpha*(N-1)/2, Nmin)
+        nmax = _np.linspace((N+1)*(1-alpha/2), N, N - Nmax)
+
+        tukmin = 0.5*(1 + _np.cos(_np.pi*(2*nmin/(alpha*N) + 1)))
+        tukmax = 0.5*(1 + _np.cos(_np.pi*(2*nmax/(alpha*N) - 2/alpha + 1)))
+
+        tukmin[0] = 0
+        tukmax[-1] = 0
+
+        return  A*_np.concatenate((tukmin, _np.ones(Nmax-Nmin), tukmax))
+
+    @staticmethod
+    def flat(*args):
+        """ flat profile. """
+
+        return args[2]*_np.ones(args[1].stop-args[1].start)

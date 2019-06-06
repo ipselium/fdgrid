@@ -82,6 +82,7 @@ class Mesh:
 
         self._make_grid()
         self._find_subdomains()
+        self._make_moving_bc()
 
     def _make_grid(self):
         """ Make grid. """
@@ -141,7 +142,13 @@ class Mesh:
         if self.ix0 > self.nx or self.iz0 > self.nz:
             raise _exceptions.GridError("Origin of the domain must be in the domain")
 
-    def plot_domains(self, legend=False, N=4, figsize=(9, 18), filename=None):
+    def _make_moving_bc(self):
+
+        for obs in self.obstacles:
+            obs.make_moving_bc(self.x, self.z)
+
+    def plot_domains(self, legend=False, N=4, figsize=(9, 18),
+                     bc_profiles=False, filename=None):
         """ Plot a scheme of the computation domain higlighting the subdomains.
 
             Parameters
@@ -150,6 +157,7 @@ class Mesh:
             N: Keep one point over N. int
             filename: save to filename. string
             figsize: size of the figure. tuple
+            bc_profiles: Show bc profiles. bool
         """
 
         _, axes = _plt.subplots(2, 1, figsize=figsize)
@@ -184,12 +192,18 @@ class Mesh:
                                   bg='k', fg='w')
             print(self.domain)
 
+        if bc_profiles:
+            for ax in axes:
+                _graphics.plot_bc_profiles(ax, self.x, self.z, self.obstacles)
+
+
         _plt.tight_layout()
 
         if isinstance(filename, str):
             _plt.savefig(filename)
 
-    def plot_grid(self, figsize=(9, 5), N=4, axis=False, pml=False, filename=None):
+    def plot_grid(self, figsize=(9, 5), N=4, axis=False, legend=False,
+                  pml=False, bc_profiles=False, filename=None):
         """ Grid representation.
 
             Parameters
@@ -199,6 +213,7 @@ class Mesh:
             filename: save to filename. string
             figsize: size of the figure. tuple
             pml: Show PML. bool
+            bc_profiles: Show bc profiles. bool
 
             BUG
             ---
@@ -211,7 +226,8 @@ class Mesh:
         fig, ax_c = _plt.subplots(figsize=figsize)
         fig.subplots_adjust(.1, .1, .95, .95)
 
-        _graphics.plot_subdomains(ax_c, self.x, self.z, self.obstacles, facecolor='k')
+        _graphics.plot_subdomains(ax_c, self.x, self.z, self.obstacles,
+                                  legend=legend, facecolor='k')
         _graphics.plot_grid(ax_c, self.x, self.z, N)
 
         ax_c.set_xlim(self.x.min(), self.x.max())
@@ -222,6 +238,9 @@ class Mesh:
 
         if pml:
             _graphics.plot_pml(ax_c, self.x, self.z, self.bc, self.Npml)
+
+        if bc_profiles:
+            _graphics.plot_bc_profiles(ax_c, self.x, self.z, self.obstacles)
 
         if axis:
             divider = _axes_grid1.make_axes_locatable(ax_c)
@@ -257,10 +276,12 @@ class Mesh:
         if isinstance(filename, str):
             _plt.savefig(filename)
 
-    def plot_physical(self, figsize=(9, 4), legend=False, pml=False, filename=None):
+    def plot_physical(self, figsize=(9, 4), legend=False,
+                      pml=False, bc_profiles=False, filename=None):
         """ Plot physical grid. """
 
-        self.plot_grid(figsize=figsize, pml=pml, filename=filename)
+        self.plot_grid(figsize=figsize, pml=pml, legend=legend,
+                       bc_profiles=bc_profiles, filename=filename)
 
     def plot_xz(self, figsize=(9, 4), filename=None):
         """ Plot x & z axis.
@@ -586,7 +607,8 @@ class CurvilinearMesh(Mesh):
 
         super().__init__(shape, step, origin, bc, obstacles, Npml, stencil)
 
-    def plot_physical(self, figsize=(9, 4), legend=False, pml=False, filename=None):
+    def plot_physical(self, figsize=(9, 4), legend=False,
+                      pml=False, bc_profiles=False, filename=None):
         """ Plot physical and numerical domains.
 
             Parameters
@@ -617,6 +639,10 @@ class CurvilinearMesh(Mesh):
         if pml:
             _graphics.plot_pml(axes[0], self.x, self.z, self.bc, self.Npml)
             _graphics.plot_pml(axes[1], self.xp, self.zp, self.bc, self.Npml)
+
+        if bc_profiles:
+            _graphics.plot_bc_profiles(axes[0], self.x, self.z, self.obstacles)
+            _graphics.plot_bc_profiles(axes[1], self.x, self.z, self.obstacles)
 
         for ax in axes:
             ax.set_aspect('equal')

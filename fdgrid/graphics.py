@@ -30,7 +30,7 @@ Figure setup functions
 
 import numpy as _np
 from matplotlib import patches as _patches, path as _path
-from fdgrid import utils as _utils, Subdomain, Domain
+from fdgrid import utils as _utils, Subdomain, Domain, Obstacle
 
 
 def plot_grid(ax, x, z, N=8):
@@ -128,8 +128,6 @@ def _check_domain(x, z, domain):
 def plot_subdomains(ax, x, z, domain, legend=False, facecolor='k', edgecolor='k', alpha=0.5):
     """ Plot subdomain in ax.
 
-    Obstacle can be a list of coordinate lists or a Domain object.
-
     Parameters
     ----------
 
@@ -163,10 +161,10 @@ def plot_subdomains(ax, x, z, domain, legend=False, facecolor='k', edgecolor='k'
             width = x[sub.ix[1]] - x[sub.ix[0]]
             height = z[sub.iz[1]] - z[sub.iz[0]]
 
-            rect = _patches.Rectangle(origin, width, height, linewidth=3,
-                                      edgecolor=edgecolor, facecolor=facecolor,
-                                      alpha=alpha)
-            ax.add_patch(rect)
+            patch = _patches.Rectangle(origin, width, height, linewidth=3,
+                                       edgecolor=edgecolor, facecolor=facecolor,
+                                       alpha=alpha)
+            ax.add_patch(patch)
 
         elif dim == 2:
 
@@ -185,9 +183,37 @@ def plot_subdomains(ax, x, z, domain, legend=False, facecolor='k', edgecolor='k'
                                        alpha=alpha)
             ax.add_patch(patch)
 
-        if legend and isinstance(sub, Subdomain):
+        if legend and isinstance(sub, Obstacle):
+            patch_text(ax, patch, sub.key, color=edgecolor)
+
+        elif legend and isinstance(sub, Subdomain):
             if sub.tag in ['X', 'A', 'W']:
-                patch_text(ax, rect, sub.key, color=edgecolor)
+                patch_text(ax, patch, sub.key, color=edgecolor)
+
+
+def plot_bc_profiles(ax, x, z, obstacles):
+    """ Plot obstacle boundary profiles in ax.
+
+    Parameters
+    ----------
+
+    x, z : 1D arrays. x and z coordinates
+    ax : Matplotlib axe where the subdomains will be plotted.
+    obstacles : Domain object.
+    """
+
+    for i, obs in enumerate(obstacles):
+        xsize = 0.02*(x.max()-x.min())
+        zsize = 0.02*(z.max()-z.min())
+
+        for bc in obs.edges:
+            print(bc.axis, bc.type, bc.f, bc.sx, bc.sz)
+            if bc.axis == 0:
+                ax.plot(x[bc.sx], z[bc.sz] + xsize*bc.prf/abs(bc.prf).max(),
+                        'k', label=f'obs : {i+1} / bc : {bc.type}')
+            elif bc.axis == 1:
+                ax.plot(x[bc.sx] + zsize*bc.prf/abs(bc.prf).max(), z[bc.sz],
+                        'k', label=f'obs : {i+1} / bc : {bc.type}')
 
 
 def plot_pml(ax, x, z, bc, Npml, ecolor='k', fcolor='k', alpha=0.1):

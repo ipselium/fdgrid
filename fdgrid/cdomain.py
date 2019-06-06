@@ -68,6 +68,7 @@ class ComputationDomains:
 
         self._shape = shape
         self._obstacles = obstacles
+        self._check_obstacles()
         self._bc = bc
         self._stencil = stencil
         self._Npml = Npml
@@ -129,6 +130,14 @@ class ComputationDomains:
         self.dxdomains.sort(inplace=True)
         self.dzdomains.sort(inplace=True)
         self.adomains.sort(inplace=True)
+
+    def _check_obstacles(self):
+        """ check if obstacles bc are 'ZRUVW'. """
+
+        for obs in self._obstacles:
+            if not _re.match(r'^[ZRUVW]+$', obs.bc):
+                msg = "Obstacle bc must be combination of 'ZRUV'"
+                raise _exceptions.BoundaryConditionError(msg)
 
     def _fdomain_bc(self):
         """ Change all 'A' for 'R' in filter domains. """

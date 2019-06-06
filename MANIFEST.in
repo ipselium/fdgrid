@@ -1,1 +1,2 @@
-exclude *.ipynb
+include docs/
+include LICENCE
