@@ -46,7 +46,7 @@ def curvx(xn, zn):
     zp = zn.copy()
     xp = xn \
         + _np.linspace(0.5, 0, xn.shape[1])*(_np.sin(2*_np.pi*zp/(zp.max()/10))/5000 \
-                                            - 10*zp**2)
+                                            - 5*zp**2)
     return xp, zp
 
 
@@ -56,7 +56,7 @@ def curvz(xn, zn):
     xp = xn.copy()
     zp = zn \
         + _np.linspace(0.5, 0, zn.shape[1])*(_np.sin(2*_np.pi*xp/(xp.max()/10))/5000 \
-                                            - 10*xp**2)
+                                            - 5*xp**2)
     return xp, zp
 
 

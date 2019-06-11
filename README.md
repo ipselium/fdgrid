@@ -60,8 +60,8 @@ pip install fdgrid
 
 ### Construction rules
 
-* Boundary conditions (**bc**) : Rules raising `BoundaryConditionError`
-  exception if not respected
+* **Boundary conditions (**bc**)** -- Rules raising `BoundaryConditionError`
+  exception if not respected:
 
 	* **bc** of the domain must be a combination of **'ZRAP'** as for
 	  (**Z**)impedance, (**R**)igid, (**A**)bsorbing, and (**P**)eriodic
@@ -72,7 +72,7 @@ pip install fdgrid
 	  the domain, '**P**' must also be chosen as boundary condition for the
 	  edge facing it
 
-* Grid construction : Rules raising `GridError` exception if not respected
+* **Grid construction** -- Rules raising `GridError` exception if not respected:
 
 	* The number of points of the **PML** must be larger than this of the
 	  stencil, otherwise `GridError` exception will be raised
@@ -80,7 +80,7 @@ pip install fdgrid
 	* For curvilinear meshes, geometric conservation laws must be verified
 	  (variable change must remains soft)
 
-* Obstacle location: Rules raising `CloseObstacleError` exception if not respected
+* **Obstacle location** -- Rules raising `CloseObstacleError` exception if not respected
 
 	* Two obstacles cannot be close to a distance of less than twice the size of
 	  the stencil that has been declared (11 by default) **except** if they
