@@ -191,7 +191,7 @@ def plot_subdomains(ax, x, z, domain, legend=False, facecolor='k', edgecolor='k'
                 patch_text(ax, patch, sub.key, color=edgecolor)
 
 
-def plot_bc_profiles(ax, x, z, obstacles):
+def plot_bc_profiles(ax, x, z, obstacles, color='r'):
     """ Plot obstacle boundary profiles in ax.
 
     Parameters
@@ -207,13 +207,18 @@ def plot_bc_profiles(ax, x, z, obstacles):
         zsize = 0.02*(z.max()-z.min())
 
         for bc in obs.edges:
-            print(bc.axis, bc.type, bc.f, bc.sx, bc.sz)
-            if bc.axis == 0:
+            if bc.axis == 0 and len(x.shape) == 1:
                 ax.plot(x[bc.sx], z[bc.sz] + xsize*bc.prf/abs(bc.prf).max(),
-                        'k', label=f'obs : {i+1} / bc : {bc.type}')
-            elif bc.axis == 1:
+                        color=color, linewidth=3, label=f'obs : {i+1} / bc : {bc.type}')
+            elif bc.axis == 1 and len(x.shape) == 1:
                 ax.plot(x[bc.sx] + zsize*bc.prf/abs(bc.prf).max(), z[bc.sz],
-                        'k', label=f'obs : {i+1} / bc : {bc.type}')
+                        color=color, linewidth=3, label=f'obs : {i+1} / bc : {bc.type}')
+            elif bc.axis == 0 and len(x.shape) > 1:
+                ax.plot(x[bc.sx, bc.sz], z[bc.sx, bc.sz] + xsize*bc.prf/abs(bc.prf).max(),
+                        color=color, linewidth=3, label=f'obs : {i+1} / bc : {bc.type}')
+            elif bc.axis == 1 and len(x.shape) > 1:
+                ax.plot(x[bc.sx, bc.sz] + zsize*bc.prf/abs(bc.prf).max(), z[bc.sx, bc.sz],
+                        color=color, linewidth=3, label=f'obs : {i+1} / bc : {bc.type}')
 
 
 def plot_pml(ax, x, z, bc, Npml, ecolor='k', fcolor='k', alpha=0.1):
