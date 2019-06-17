@@ -799,6 +799,7 @@ class Edges:
 
     type: str
     f: float
+    phi: float
     sx: slice
     sz: slice
     prf: _np.ndarray
@@ -831,18 +832,18 @@ class Obstacle(Subdomain):
 
         if bc in ['U', 'V']:
             func = getattr(self, setup['func'], self.flat)
-            return [bc], [func], [setup.get('f', 0)], \
+            return [bc], [func], [setup.get('f', 0)], [setup.get('phi', 0)], \
                     [setup.get('A', 0)], [setup.get('kwargs', dict())]
 
         if bc == 'W':
             func = (getattr(self, setup['func'][0], self.flat),
                     getattr(self, setup['func'][1], self.flat))
-            return ['U', 'V'], func, setup.get('f', 0), \
+            return ['U', 'V'], func, setup.get('f', 0), setup.get('phi', 0), \
                     setup.get('A', 0), setup.get('kwargs', [dict(), dict()])
 
         raise ValueError("Moving bc must be 'U', 'V', or 'W'")
 
-    def make_moving_bc(self, x, z):
+    def make_moving_bc(self, x, z, J=None):
         """ Construct moving boundaries. """
 
         if hasattr(self, 'setup'):
@@ -854,17 +855,28 @@ class Obstacle(Subdomain):
 
                 if bc in ['U', 'V', 'W']:
 
-                    comp, func, f, A, kwargs = self._parse_moving_bc(bc, self.setup[nbc])
+                    comp, func, f, phi, A, kwargs = self._parse_moving_bc(bc, self.setup[nbc])
 
                     for k, cp in enumerate(comp):
 
                         if i%2 != 0:
-                            lst = [cp, f[k], self.sx, self.xz[i]]
-                            lst.append(func[k](x, self.sx, A[k], **kwargs[k]))
+                            lst = [cp, f[k], phi[k], self.sx, self.xz[i]]
+                            if len(x.shape) == 2:
+                                lst.append(A[k]/J[self.sx, self.xz[i]]*
+                                           func[k](x[:, self.xz[i]],
+                                                   self.sx, **kwargs[k]))
+                            else:
+                                lst.append(A[k]*func[k](x, self.sx, **kwargs[k]))
                             lst.append(0)
+
                         else:
-                            lst = [cp, f[k], self.xz[i], self.sz]
-                            lst.append(func[k](z, self.sz, A[k], **kwargs[k]))
+                            lst = [cp, f[k], phi[k], self.xz[i], self.sz]
+                            if len(z.shape) == 2:
+                                lst.append(A[k]/J[self.xz[i], self.sz]*
+                                           func[k](z[self.xz[i], :],
+                                                   self.sz, **kwargs[k]))
+                            else:
+                                lst.append(A[k]*func[k](z, self.sz, **kwargs[k]))
                             lst.append(1)
 
                         self.edges.append(Edges(*lst))
@@ -872,17 +884,17 @@ class Obstacle(Subdomain):
                     nbc += 1
 
     @staticmethod
-    def sine(c, sc, A, **kwargs):
+    def sine(c, sc, **kwargs):
         """ Sine profile. """
 
         L = c[sc.stop-1] - c[sc.start]
         n = kwargs.get('n', 1)
         kL = 2*_np.pi/(n*L)
 
-        return A*_np.sin(kL*(c[sc] - c[sc.start]))
+        return _np.sin(kL*(c[sc] - c[sc.start]))
 
     @staticmethod
-    def tukey(c, sc, A, **kwargs):
+    def tukey(c, sc, **kwargs):
         """ Tapered cosine profile. """
 
         L = c[sc.stop-1] - c[sc.start]
@@ -903,10 +915,10 @@ class Obstacle(Subdomain):
         tukmin[0] = 0
         tukmax[-1] = 0
 
-        return  A*_np.concatenate((tukmin, _np.ones(Nmax-Nmin), tukmax))
+        return  _np.concatenate((tukmin, _np.ones(max(0, Nmax-Nmin)), tukmax))
 
     @staticmethod
     def flat(*args):
         """ flat profile. """
 
-        return args[2]*_np.ones(args[1].stop-args[1].start)
+        return _np.ones(args[1].stop-args[1].start)

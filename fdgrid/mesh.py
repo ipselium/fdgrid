@@ -642,7 +642,7 @@ class CurvilinearMesh(Mesh):
 
         if bc_profiles:
             _graphics.plot_bc_profiles(axes[0], self.x, self.z, self.obstacles)
-            _graphics.plot_bc_profiles(axes[1], self.x, self.z, self.obstacles)
+            _graphics.plot_bc_profiles(axes[1], self.xp, self.zp, self.obstacles)
 
         for ax in axes:
             ax.set_aspect('equal')
@@ -690,7 +690,12 @@ class CurvilinearMesh(Mesh):
         if _np.abs(gcl_x).max() > 1e-8 or _np.abs(gcl_z).max() > 1e-8:
             print('GCL (x) : ', _np.abs(gcl_x).max())
             print('GCL (z) : ', _np.abs(gcl_z).max())
-            raise _exceptions.GridError('Geometric Conservation Laws not verified')
+            #raise _exceptions.GridError('Geometric Conservation Laws not verified')
+
+    def _make_moving_bc(self):
+
+        for obs in self.obstacles:
+            obs.make_moving_bc(self.xp, self.zp, self.J)
 
     def __str__(self):
         s = 'Curvilinear {}x{} points grid with {} boundary conditions:\n\n'
