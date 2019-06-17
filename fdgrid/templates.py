@@ -60,10 +60,11 @@ def curvz(xn, zn):
     return xp, zp
 
 
-def curvxz(xn, zn):
-    """ Curvlinear coordinates : test case 2 following x and z : circle """
+def circle(xn, zn):
+    """ Curvilinear coordinates : circle """
 
-    R = 1.
+    width = xn[-1, 0] - xn[0, 0]
+    R = width/(2*_np.pi)
     xp = (zn + R)*_np.sin(xn/R)
     zp = (zn + R)*_np.cos(xn/R)
 
