@@ -636,6 +636,8 @@ class CurvilinearMesh(Mesh):
                                   legend=legend,
                                   edgecolor=edgecolor, facecolor=facecolor, alpha=alpha)
 
+        _plt.tight_layout()
+
         if pml:
             _graphics.plot_pml(axes[0], self.x, self.z, self.bc, self.Npml)
             _graphics.plot_pml(axes[1], self.xp, self.zp, self.bc, self.Npml)
@@ -649,7 +651,6 @@ class CurvilinearMesh(Mesh):
             ax.set_xlabel(r'x [m]')
             ax.set_ylabel(r'z [m]')
 
-        _plt.tight_layout()
 
         if isinstance(filename, str):
             _plt.savefig(filename)
@@ -695,7 +696,7 @@ class CurvilinearMesh(Mesh):
     def _make_moving_bc(self):
 
         for obs in self.obstacles:
-            obs.make_moving_bc(self.xp, self.zp, self.J)
+            obs.make_moving_bc(self.x, self.z)
 
     def __str__(self):
         s = 'Curvilinear {}x{} points grid with {} boundary conditions:\n\n'

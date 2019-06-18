@@ -797,14 +797,15 @@ class Subdomain:
 class Edges:
     """ Edges description for moving boundaries. """
 
-    type: str
-    f: float
-    phi: float
-    sx: slice
-    sz: slice
-    prf: _np.ndarray
-    axis: int
-
+    f0_t: float = 0
+    f0_n: float = 0
+    phi_t: float = 0
+    phi_n: float = 0
+    vn: _np.ndarray = 0
+    vt: _np.ndarray = 0
+    sx: slice = 0
+    sz: slice = 0
+    axis: int = 0
 
 class Obstacle(Subdomain):
     """ Obstacle object.
@@ -813,7 +814,7 @@ class Obstacle(Subdomain):
     ----------
 
     xz : Coordinates of the Subdomain : left, bottom, right, top
-    bc : Boundary conditions. Must be a string of 4 chacracter among 'A', 'R', 'Z' and 'P'
+    bc : Boundary conditions. Must be a string of 4 characters among 'R', 'Z' or 'V'
     key : Key of the subdomain. Optional
     axis : 0 or 1. The direction of the subdomain if relevant. Optional.
     tag : str. The type of Subdomain. Optional
@@ -823,65 +824,160 @@ class Obstacle(Subdomain):
         super().__post_init__()
         self.edges = []
 
-    def set_moving_bc(self, *setup):
-        """ Set parameters for moving bc. """
+    def set_moving_bc(self, *args):
+        """ Set parameters for moving bc. For each moving bc of the obstacle,
+        you can specify the parameters as a dictionnary containing the
+        following optional keys :
 
-        self.setup = setup
+        Parameters
+        ----------
 
-    def _parse_moving_bc(self, bc, setup):
+        f or f_n : frequency of the normal velocity
+        f_t : frequency of the tangential velocity
+        A or A_n : Amplitude of the normal velocity
+        A_t : Amplitude of the tangential velocity
+        phi or phi_n : Phase of the normal velocity
+        phi_t : Phase of the tangential velocity
+        func or func_r : Function for normal velocity profile construction
+        func or func_t : Function for tangential velocity profile construction
+        kwargs or kwargs_n : optional arguments for func_r
+        kwargs_t : optional arguments for func_t
 
-        if bc in ['U', 'V']:
-            func = getattr(self, setup['func'], self.flat)
-            return [bc], [func], [setup.get('f', 0)], [setup.get('phi', 0)], \
-                    [setup.get('A', 0)], [setup.get('kwargs', dict())]
+        Available functions
+        -------------------
 
-        if bc == 'W':
-            func = (getattr(self, setup['func'][0], self.flat),
-                    getattr(self, setup['func'][1], self.flat))
-            return ['U', 'V'], func, setup.get('f', 0), setup.get('phi', 0), \
-                    setup.get('A', 0), setup.get('kwargs', [dict(), dict()])
+        sine: sinus profile
+              kwargs - n : wavelength (default:1 for one period)
+        tukey: tapered cosine
+               kwargs - alpha : edge width (default: 0.2)
+        flat: constant profile
 
-        raise ValueError("Moving bc must be 'U', 'V', or 'W'")
+        Example
+        -------
 
-    def make_moving_bc(self, x, z, J=None):
+        obs1 = Obstacle([10, 10, 100, 100], 'VVRV')
+
+        obs1.set_moving_bc({'f': 100, 'A': 2.1, 'func': 'sine',
+                            'f_t': 1000, 'A_t': 0.1, 'func_t': 'flat'},
+                           {'f': 500, 'A': -1.5, 'func': 'tukey'},
+                           {'f': 500, 'A': 1.5 'func': 'tukey'})
+        """
+
+        args = iter(list(args) + (4-len(args))*[dict()])
+        self.setup = [{} if b == 'R' else next(args) for b in self.bc]
+
+    def _parse_bc_setup_n(self, setup):
+
+        func = setup.get('func_n', setup.get('func', 'None'))
+        func = getattr(self, func, None)
+
+        f = setup.get('f_n', setup.get('f', 0))
+        phi = setup.get('phi_n', setup.get('phi', 0))
+        A = setup.get('A_n', setup.get('A', 0))
+        kwargs = setup.get('kwargs_n', setup.get('kwargs', dict()))
+
+        return func, f, phi, A, kwargs
+
+    def _parse_bc_setup_t(self, setup):
+
+        func = setup.get('func_t', 'None')
+        func = getattr(self, func, None)
+
+        f = setup.get('f_t', 0)
+        phi = setup.get('phi_t', 0)
+        A = setup.get('A_t', 0)
+        kwargs = setup.get('kwargs_t', dict())
+
+        return func, f, phi, A, kwargs
+
+    def make_moving_bc(self, x, z, LOG=False):
         """ Construct moving boundaries. """
 
         if hasattr(self, 'setup'):
 
-            self.edges = []
-            nbc = 0
+            for i in range(4):
 
-            for i, bc in enumerate(self.bc):
+                if len(x.shape) == 2:
+                    self._make_moving_bc_curvilinear(i, x, z)
 
-                if bc in ['U', 'V', 'W']:
+                else:
+                    self._make_moving_bc_cartesian(i, x, z)
 
-                    comp, func, f, phi, A, kwargs = self._parse_moving_bc(bc, self.setup[nbc])
+            if LOG:
+                for e in self.edges:
+                    _, ax = _plt.subplots(1, 2)
+                    ax[0].plot(e.vn)
+                    ax[0].grid()
+                    ax[0].set_title('Numerical domain')
 
-                    for k, cp in enumerate(comp):
+                    if e.axis == 0:
+                        ax[1].plot(z[e.sx, e.sz], e.vn)
+                    if e.axis == 1:
+                        ax[1].plot(x[e.sx, e.sz], e.vn)
 
-                        if i%2 != 0:
-                            lst = [cp, f[k], phi[k], self.sx, self.xz[i]]
-                            if len(x.shape) == 2:
-                                lst.append(A[k]/J[self.sx, self.xz[i]]*
-                                           func[k](x[:, self.xz[i]],
-                                                   self.sx, **kwargs[k]))
-                            else:
-                                lst.append(A[k]*func[k](x, self.sx, **kwargs[k]))
-                            lst.append(0)
+                    ax[1].set_title('Physical domain')
+                    ax[1].grid()
+                    _plt.tight_layout()
 
-                        else:
-                            lst = [cp, f[k], phi[k], self.xz[i], self.sz]
-                            if len(z.shape) == 2:
-                                lst.append(A[k]/J[self.xz[i], self.sz]*
-                                           func[k](z[self.xz[i], :],
-                                                   self.sz, **kwargs[k]))
-                            else:
-                                lst.append(A[k]*func[k](z, self.sz, **kwargs[k]))
-                            lst.append(1)
+    def _make_moving_bc_cartesian(self, i, x, z):
 
-                        self.edges.append(Edges(*lst))
+        func_n, f_n, phi_n, A_n, kwargs_n = self._parse_bc_setup_n(self.setup[i])
+        func_t, f_t, phi_t, A_t, kwargs_t = self._parse_bc_setup_t(self.setup[i])
 
-                    nbc += 1
+        d = {'axis': i%2}
+
+        if i%2 == 0:    # following x
+            d['sx'] = self.xz[i]
+            d['sz'] = self.sz
+            if func_n:
+                d.update({'f0_n': f_n, 'phi_n': phi_n})
+                d['vn'] = A_n*func_n(z, self.sz, **kwargs_n)
+            if func_t:
+                d.update({'f0_t': f_t, 'phi_t': phi_t})
+                d['vt'] = A_t*func_t(z, self.sz, **kwargs_t)
+
+        else:           # following z
+            d['sx'] = self.sx
+            d['sz'] = self.xz[i]
+            if func_n:
+                d.update({'f0_n': f_n, 'phi_n': phi_n})
+                d['vn'] = A_n*func_n(x, self.sx, **kwargs_n)
+            if func_t:
+                d.update({'f0_t': f_t, 'phi_t': phi_t})
+                d['vt'] = A_t*func_t(x, self.sx, **kwargs_t)
+
+        if f_t or f_n:
+            self.edges.append(Edges(**d))
+
+    def _make_moving_bc_curvilinear(self, i, x, z):
+
+        func_n, f_n, phi_n, A_n, kwargs_n = self._parse_bc_setup_n(self.setup[i])
+        func_t, f_t, phi_t, A_t, kwargs_t = self._parse_bc_setup_t(self.setup[i])
+
+        d = {'axis': i%2}
+
+        if i%2 == 0:    # following x
+            d['sx'] = self.xz[i]
+            d['sz'] = self.sz
+            if func_n:
+                d.update({'f0_n': f_n, 'phi_n': phi_n})
+                d['vn'] = A_n*func_n(z[self.xz[i], :], self.sz, **kwargs_n)
+            if func_t:
+                d.update({'f0_t': f_t, 'phi_t': phi_t})
+                d['vt'] = A_t*func_t(z[self.xz[i], :], self.sz, **kwargs_t)
+
+        else:           # following z
+            d['sx'] = self.sx
+            d['sz'] = self.xz[i]
+            if func_n:
+                d.update({'f0_n': f_n, 'phi_n': phi_n})
+                d['vn'] = A_n*func_n(x[:, self.xz[i]], self.sx, **kwargs_n)
+            if func_t:
+                d.update({'f0_t': f_t, 'phi_t': phi_t})
+                d['vt'] = A_t*func_t(x[:, self.xz[i]], self.sx, **kwargs_t)
+
+        if func_n or func_t:
+            self.edges.append(Edges(**d))
 
     @staticmethod
     def sine(c, sc, **kwargs):

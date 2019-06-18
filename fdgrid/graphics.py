@@ -30,6 +30,8 @@ Figure setup functions
 
 import numpy as _np
 from matplotlib import patches as _patches, path as _path
+from mpl_toolkits.axes_grid1.inset_locator import inset_axes
+from mplutils import modified_jet
 from fdgrid import utils as _utils, Subdomain, Domain, Obstacle
 
 
@@ -202,24 +204,38 @@ def plot_bc_profiles(ax, x, z, obstacles, color='r'):
     obstacles : Domain object.
     """
 
+    cm = modified_jet()
+
     for i, obs in enumerate(obstacles):
         xsize = 0.02*(x.max()-x.min())
         zsize = 0.02*(z.max()-z.min())
 
         for bc in obs.edges:
-            if bc.axis == 0 and len(x.shape) == 1:
-                ax.plot(x[bc.sx], z[bc.sz] + xsize*bc.prf/abs(bc.prf).max(),
-                        color=color, linewidth=3, label=f'obs : {i+1} / bc : {bc.type}')
-            elif bc.axis == 1 and len(x.shape) == 1:
-                ax.plot(x[bc.sx] + zsize*bc.prf/abs(bc.prf).max(), z[bc.sz],
-                        color=color, linewidth=3, label=f'obs : {i+1} / bc : {bc.type}')
-            elif bc.axis == 0 and len(x.shape) > 1:
-                ax.plot(x[bc.sx, bc.sz], z[bc.sx, bc.sz] + xsize*bc.prf/abs(bc.prf).max(),
-                        color=color, linewidth=3, label=f'obs : {i+1} / bc : {bc.type}')
-            elif bc.axis == 1 and len(x.shape) > 1:
-                ax.plot(x[bc.sx, bc.sz] + zsize*bc.prf/abs(bc.prf).max(), z[bc.sx, bc.sz],
-                        color=color, linewidth=3, label=f'obs : {i+1} / bc : {bc.type}')
 
+            if bc.axis == 1 and len(x.shape) == 1:
+                ax.plot(x[bc.sx], z[bc.sz] + xsize*bc.vn/abs(bc.vn).max(),
+                        color=color, linewidth=3, label=f'obs : {i+1}')
+
+            elif bc.axis == 0 and len(x.shape) == 1:
+                ax.plot(x[bc.sx] + zsize*bc.vn/abs(bc.vn).max(), z[bc.sz],
+                        color=color, linewidth=3, label=f'obs : {i+1}')
+
+            elif bc.axis == 1 and len(x.shape) > 1:
+                sz = slice(bc.sz-1, bc.sz+2)
+                im = ax.pcolormesh(x[bc.sx, sz], z[bc.sx, sz],
+                                   _np.tile(bc.vn, (sz.stop-sz.start, 1)).T,
+                                   cmap=cm, alpha=1)
+
+            elif bc.axis == 0 and len(x.shape) > 1:
+                sx = slice(bc.sx-1, bc.sx+2)
+                im = ax.pcolormesh(x[sx, bc.sz], z[sx, bc.sz],
+                                   _np.tile(bc.vn, (sz.stop-sz.start, 1)).T,
+                                   cmap=cm)
+
+    if 'im' in locals():
+        cbaxes = inset_axes(ax, width="30%", height="3%", loc=3)
+        ax.get_figure().colorbar(im, cax=cbaxes, orientation='horizontal')
+        cbaxes.xaxis.set_ticks_position('top')
 
 def plot_pml(ax, x, z, bc, Npml, ecolor='k', fcolor='k', alpha=0.1):
     """ Display PML areas. """

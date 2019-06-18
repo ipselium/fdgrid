@@ -132,11 +132,11 @@ class ComputationDomains:
         self.adomains.sort(inplace=True)
 
     def _check_obstacles(self):
-        """ check if obstacles bc are 'ZRUVW'. """
+        """ check if obstacles bc are 'ZRV'. """
 
         for obs in self._obstacles:
-            if not _re.match(r'^[ZRUVW]+$', obs.bc):
-                msg = "Obstacle bc must be combination of 'ZRUVW'"
+            if not _re.match(r'^[ZRV]+$', obs.bc):
+                msg = "Obstacle bc must be combination of 'ZRV'"
                 raise _exceptions.BoundaryConditionError(msg)
 
     def _fdomain_bc(self):

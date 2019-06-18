@@ -66,8 +66,7 @@ pip install fdgrid
 	* **bc** of the domain must be a combination of **'ZRAP'** as for
 	  (**Z**)impedance, (**R**)igid, (**A**)bsorbing, and (**P**)eriodic
 	* **bc** of each `Obstacle` object must be a combination of
-	  (**Z**)impedance, (**R**)igid, (U) x-velocity, (V) z-velocity, (W) x
-	  & z velocities
+	  (**Z**)impedance, (**R**)igid, (V) velocity
 	* If periodic (**P**) is chosen as boundary condition for an edge of
 	  the domain, '**P**' must also be chosen as boundary condition for the
 	  edge facing it
@@ -98,8 +97,8 @@ pip install fdgrid
 * Use `Obstacle` to create an obstacle:
 
 	* First argument is a list of coordinates as *[left, bottom, right, top]*
-	* Second argument is the boundary conditions [*(R)igid, (U) x-velocity,
-	  (V) z-velocity, (W) x & z velocities, (Z)impedance*]
+	* Second argument is the boundary conditions [*(R)igid, (V) velocity,
+	  (Z)impedance*]
 
 * Use `Domain` to gather all `Obstacle` objects:
 
@@ -192,16 +191,15 @@ msh.plot_physical()
 
 `Obstacle` instances inherit the `set_moving_bc` method. This method allows you
 to set moving edges. `set_moving_bc` can take as many arguments as the number
-of **U**, **V**, or **W** boundary. Each of these arguments must be a dictionary
+of **V** boundaries. Each of these arguments must be a dictionary
 with the following keys :
 
 * `f`: the oscillation frequency
 * `A`: the oscillation amplitude
+* `phi`: the phase of oscillation
 * `func`: the oscillation profile of the boundary. For now, it can be 'sine' (sine
   profile), 'tukey' (tapered cosine profile), or 'flat' (constant profile)
 * `kwargs`: special arguments than can be passed to `func`
-
-For the special case of **W** boundary, each value must be a tuple. For instance :
 
 ```python
 obstacle.set_moving_bc({'f':(100, 200), 'A':(1, 0.5), 'func':('sine', 'flat')})
@@ -216,8 +214,8 @@ def custom_obstacles(nx, nz, size_percent=20):
 
     size = int(min(nx, nz)*size_percent/100)
 
-    obs1 = Obstacle([int(nx/2)-size, int(nz/2)-size, int(nx/2)+size, int(nz/2)+size], 'UVRV')
-    obs2 = Obstacle([nx-11, 0, nx-1, nz-1], 'URRR')
+    obs1 = Obstacle([int(nx/2)-size, int(nz/2)-size, int(nx/2)+size, int(nz/2)+size], 'VVRV')
+    obs2 = Obstacle([nx-11, 0, nx-1, nz-1], 'VRRR')
 
     obs1.set_moving_bc({'f': 70000, 'A': 1, 'func': 'sine'},
                        {'f': 30000, 'A': -1, 'func': 'tukey'},

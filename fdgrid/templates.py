@@ -34,6 +34,11 @@ import numpy as _np
 from fdgrid import _exceptions, Domain, Obstacle
 
 
+#-----------------------------------------------------------------------------#
+# Curvilinear transformations                                                 #
+#-----------------------------------------------------------------------------#
+
+
 def curv(xn, zn):
     """ Curvlinear coordinates : test case 1. Physical == numerical """
 
@@ -70,6 +75,25 @@ def circle(xn, zn):
 
     return xp, zp
 
+
+def section(xn, zn, variation=25, zmin=5, zmax=-5):
+    """ Curvlinear coordinates : test case 2 following x and z : circle """
+
+    xp = xn.copy()
+    if zmin < zmax:
+        zp = zn \
+            + _np.linspace(zmin, zmax, zn.shape[1]) \
+            * (_np.pi/2 + _np.arctan(variation*_np.pi*xn/xn.max()))
+    else:
+        zp = zn \
+            + _np.linspace(zmin, zmax, zn.shape[1]) \
+            * (-_np.pi/2 + _np.arctan(variation*_np.pi*xn/xn.max()))
+
+    return xp, zp
+
+#-----------------------------------------------------------------------------#
+# Geometry                                                                    #
+#-----------------------------------------------------------------------------#
 
 def testcase1(nx, nz):
     """ Test case with complex geometry. """
@@ -255,8 +279,8 @@ def moving_square(nx, nz, size_percent=20):
     size = int(min(nx, nz)*size_percent/100)
 
     obs1 = Obstacle([int(nx/2)-size, int(nz/2)-size,
-                     int(nx/2)+size, int(nz/2)+size], 'UVRV')
-    obs2 = Obstacle([nx-11, 0, nx-1, nz-1], 'URRR')
+                     int(nx/2)+size, int(nz/2)+size], 'VVRV')
+    obs2 = Obstacle([nx-11, 0, nx-1, nz-1], 'VRRR')
 
     obs1.set_moving_bc({'f': 70000, 'A': 1, 'func': 'sine'},
                        {'f': 30000, 'A': -1, 'func': 'tukey'},
