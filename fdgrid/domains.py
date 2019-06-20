@@ -847,7 +847,7 @@ class Obstacle(Subdomain):
         -------------------
 
         sine: sinus profile
-              kwargs - n : wavelength (default:1 for one period)
+              kwargs - n : wavelength (default: 2 for half a period)
         tukey: tapered cosine
                kwargs - alpha : edge width (default: 0.2)
         flat: constant profile
@@ -984,7 +984,7 @@ class Obstacle(Subdomain):
         """ Sine profile. """
 
         L = c[sc.stop-1] - c[sc.start]
-        n = kwargs.get('n', 1)
+        n = kwargs.get('n', 2)
         kL = 2*_np.pi/(n*L)
 
         return _np.sin(kL*(c[sc] - c[sc.start]))

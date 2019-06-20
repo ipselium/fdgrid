@@ -237,6 +237,7 @@ def plot_bc_profiles(ax, x, z, obstacles, color='r'):
         ax.get_figure().colorbar(im, cax=cbaxes, orientation='horizontal')
         cbaxes.xaxis.set_ticks_position('top')
 
+
 def plot_pml(ax, x, z, bc, Npml, ecolor='k', fcolor='k', alpha=0.1):
     """ Display PML areas. """
 

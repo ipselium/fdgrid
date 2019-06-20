@@ -691,7 +691,7 @@ class CurvilinearMesh(Mesh):
         if _np.abs(gcl_x).max() > 1e-8 or _np.abs(gcl_z).max() > 1e-8:
             print('GCL (x) : ', _np.abs(gcl_x).max())
             print('GCL (z) : ', _np.abs(gcl_z).max())
-            #raise _exceptions.GridError('Geometric Conservation Laws not verified')
+            raise _exceptions.GridError('Geometric Conservation Laws not verified')
 
     def _make_moving_bc(self):
 
