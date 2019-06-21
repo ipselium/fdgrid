@@ -203,7 +203,7 @@ class Mesh:
             _plt.savefig(filename)
 
     def plot_grid(self, figsize=(9, 5), N=4, axis=False, legend=False,
-                  pml=False, bc_profiles=False, filename=None):
+                  pml=False, bc_profiles=False, probes=False, filename=None):
         """ Grid representation.
 
             Parameters
@@ -235,6 +235,9 @@ class Mesh:
         ax_c.set_xlabel(r'$x$ [m]')
         ax_c.set_ylabel(r'$z$ [m]')
         ax_c.set_aspect('equal')
+
+        if probes:
+            _ = [ax_c.plot(self.x[i], self.z[j], 'ro') for i, j in probes]
 
         if pml:
             _graphics.plot_pml(ax_c, self.x, self.z, self.bc, self.Npml)
@@ -277,11 +280,11 @@ class Mesh:
             _plt.savefig(filename)
 
     def plot_physical(self, figsize=(9, 4), legend=False,
-                      pml=False, bc_profiles=False, filename=None):
+                      pml=False, bc_profiles=False, probes=False, filename=None):
         """ Plot physical grid. """
 
         self.plot_grid(figsize=figsize, pml=pml, legend=legend,
-                       bc_profiles=bc_profiles, filename=filename)
+                       bc_profiles=bc_profiles, probes=probes, filename=filename)
 
     def plot_xz(self, figsize=(9, 4), filename=None):
         """ Plot x & z axis.
@@ -608,7 +611,7 @@ class CurvilinearMesh(Mesh):
         super().__init__(shape, step, origin, bc, obstacles, Npml, stencil)
 
     def plot_physical(self, figsize=(9, 4), legend=False,
-                      pml=False, bc_profiles=False, filename=None):
+                      pml=False, bc_profiles=False, probes=False, filename=None):
         """ Plot physical and numerical domains.
 
             Parameters
@@ -637,6 +640,10 @@ class CurvilinearMesh(Mesh):
                                   edgecolor=edgecolor, facecolor=facecolor, alpha=alpha)
 
         _plt.tight_layout()
+
+        if probes:
+            _ = [axes[0].plot(self.x[i], self.z[j], 'ro') for i, j in probes]
+            _ = [axes[1].plot(self.xp[i, j], self.zp[i, j], 'ro') for i, j in probes]
 
         if pml:
             _graphics.plot_pml(axes[0], self.x, self.z, self.bc, self.Npml)
