@@ -26,11 +26,10 @@
 """
 -----------
 
-Module `cdomain` provides `ComputationDomains` class.
+Module `cdomain` provides `ComputationDomains` class aiming at dividing the
+grid into Subdomain objects used by nsfds2
 
-The goal is to divide the grid into Subdomain objects used by nsfds2
-
-@author: Cyril Desjouy
+-----------
 """
 
 
@@ -50,17 +49,21 @@ class ComputationDomains:
 
     Parameters
     ----------
-
-    shape : Size of the domain. Must be a 2 elements tuple of int
-    obstacles : Domain object gathering all obstacles (Subdomain objects)
-    bc : Boundary conditions. Must be a string of 4 chacracter among 'A', 'R', 'Z' and 'P'
-    stencil : Int. Size of the finite difference stencil that will be used by nsfds2
-    Npml : Int. Number of points of the absorbing area (if 'A' is in bc). Optional
+    shape : tuple
+        Size of the domain. Must be a tuple with two int objects.
+    obstacles : :py:class:`fdgrid.domains.Domain`, optional
+        Obstacles in the computation domain.
+    bc : {'[ARZP][ARZP][ARZP][ARZP]'}, optional
+        Boundary conditions. Must be a 4 characters string.
+    Npml : int, optional
+        Number of points of the absorbing area (only if 'A' in `bc`).
+    stencil : int, optional
+        Size of the finite difference stencil (used by :py:mod:`nsfds2`).
 
     Raises
-    -----
-
-    CloseObstaclesError: when obstacles are too close from each other or from the grid boundary
+    ------
+    CloseObstaclesError: when obstacles are too close from each other or from
+    the grid boundary
 
     """
 

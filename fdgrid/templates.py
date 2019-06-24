@@ -24,11 +24,13 @@
 """
 -----------
 
-Examples of obstacle arangements.
+The `templates` module provides a collection of examples to :
 
-@author: Cyril Desjouy
+* build arangments of obstacles
+* set curvilinear transformations for :py:class:`fdgrid.mesh.CurvilinearMesh`
+
+-----------
 """
-
 
 import numpy as _np
 from fdgrid import _exceptions, Domain, Obstacle
@@ -40,13 +42,13 @@ from fdgrid import _exceptions, Domain, Obstacle
 
 
 def curv(xn, zn):
-    """ Curvlinear coordinates : test case 1. Physical == numerical """
+    """ Curvilinear coordinates: test case 1. Physical == numerical. """
 
     return xn.copy(), zn.copy()
 
 
 def curvx(xn, zn):
-    """ Curvlinear coordinates : test case 2 following x """
+    """ Curvilinear coordinates: test case 2. Following x. """
 
     zp = zn.copy()
     xp = xn \
@@ -56,7 +58,7 @@ def curvx(xn, zn):
 
 
 def curvz(xn, zn):
-    """ Curvlinear coordinates : test case 2 following z """
+    """ Curvilinear coordinates: test case 2. Following z. """
 
     xp = xn.copy()
     zp = zn \
@@ -66,7 +68,7 @@ def curvz(xn, zn):
 
 
 def circle(xn, zn):
-    """ Curvilinear coordinates : circle """
+    """ Curvilinear coordinates: test case 3. The circle. """
 
     width = xn[-1, 0] - xn[0, 0]
     R = width/(2*_np.pi)
@@ -77,7 +79,7 @@ def circle(xn, zn):
 
 
 def section(xn, zn, variation=25, zmin=5, zmax=-5):
-    """ Curvlinear coordinates : test case 2 following x and z : circle """
+    """ Curvilinear coordinates: test case 4. The section change. """
 
     xp = xn.copy()
     if zmin < zmax:
@@ -96,7 +98,7 @@ def section(xn, zn, variation=25, zmin=5, zmax=-5):
 #-----------------------------------------------------------------------------#
 
 def testcase1(nx, nz):
-    """ Test case with complex geometry. """
+    """ Geometry: Test case 1. Complex geometry. """
 
     geo = [Obstacle([0, 0, 60, 40], 'RRRR'),
            Obstacle([26, 40, 33, 50], 'RRRR'),
@@ -112,7 +114,7 @@ def testcase1(nx, nz):
 
 
 def testcase2(nx, nz):
-    """ Test case for periodic bc. """
+    """ Geometry: Test case 2. Periodic bc. """
 
     PML = 16
 
@@ -126,13 +128,18 @@ def testcase2(nx, nz):
 
 
 def helmholtz(nx, nz, cavity=(0.2, 0.2), neck=(0.1, 0.1)):
-    """ Helmholtz resonator.
+    """ Geometry: Helmholtz resonator.
 
-    Parameters:
-    -----------
-
-    cavity (tuple): Normalized (width, height) of the cavity
-    neck (tuple): Normalized (width, height) of the neck
+    Parameters
+    ----------
+    nx : int
+        Width of the domain.
+    nz : int
+        Height of the domain.
+    cavity : tuple, optional
+        Normalized (width, height) of the cavity.
+    neck : tuple, optional
+        Normalized (width, height) of the neck.
 
     """
 
@@ -157,13 +164,18 @@ def helmholtz(nx, nz, cavity=(0.2, 0.2), neck=(0.1, 0.1)):
 
 
 def helmholtz_double(nx, nz, cavity=(0.2, 0.2), neck=(0.1, 0.1)):
-    """ Helmholtz resonator.
+    """ Geometry: Double Helmholtz resonator.
 
-    Parameters:
-    -----------
-
-    cavity (tuple): Normalized (width, height) of the cavity
-    neck (tuple): Normalized (width, height) of the neck
+    Parameters
+    ----------
+    nx : int
+        Width of the domain.
+    nz : int
+        Height of the domain.
+    cavity : tuple, optional
+        Normalized (width, height) of the cavity.
+    neck : tuple, optional
+        Normalized (width, height) of the neck.
 
     """
 
@@ -202,12 +214,20 @@ def helmholtz_double(nx, nz, cavity=(0.2, 0.2), neck=(0.1, 0.1)):
 
 
 def plus(nx, nz, ix0=None, iz0=None, size=20):
-    """ Plus sign.
+    """ Geometry: Plus sign.
 
-    Parameters:
-    -----------
-
-    size (int): size of a square (number of points)
+    Parameters
+    ----------
+    nx : int
+        Width of the domain.
+    nz : int
+        Height of the domain.
+    ix0 : int, optional
+        x-location of the pattern.
+    iz0 : int, optional
+        z-location of the pattern.
+    size : int
+        Width of the pattern.
     """
 
     if not ix0:
@@ -232,13 +252,16 @@ def plus(nx, nz, ix0=None, iz0=None, size=20):
 
 
 def square(nx, nz, size_percent=20):
-    """ Square in the middle.
+    """ Geometry: Square at the center of the domain.
 
-    Parameters:
-    -----------
-
-    size_percent (float): size of the square in percent of the largest
-    dimension of the domain.
+    Parameters
+    ----------
+    nx : int
+        Width of the domain.
+    nz : int
+        Height of the domain.
+    size_percent : float
+        size of the square (percent of the largest dimension of the domain).
     """
 
     size = int(min(nx, nz)*size_percent/100)
@@ -249,7 +272,15 @@ def square(nx, nz, size_percent=20):
 
 
 def street(nx, nz):
-    """ Street with building facades. """
+    """ Geometry: Street model.
+
+    Parameters
+    ----------
+    nx : int
+        Width of the domain.
+    nz : int
+        Height of the domain.
+    """
 
     geo = [Obstacle([0, 0, int(0.7*nx), int(nz*0.25)], 'RRRR'),
            Obstacle([int(0.8*nx), 0, nx-1, int(nz*0.25)], 'RRRR'),
@@ -267,13 +298,16 @@ def street(nx, nz):
 
 
 def moving_square(nx, nz, size_percent=20):
-    """ Square in the middle with moving boundary.
+    """ Geometry: Square with moving bc.
 
-    Parameters:
-    -----------
-
-    size_percent (float): size of the square in percent of the largest
-    dimension of the domain.
+    Parameters
+    ----------
+    nx : int
+        Width of the domain.
+    nz : int
+        Height of the domain.
+    size_percent : float
+        size of the square (percent of the largest dimension of the domain).
     """
 
     size = int(min(nx, nz)*size_percent/100)

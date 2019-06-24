@@ -25,7 +25,7 @@
 
 Some tools for fdgrid.
 
-@author: Cyril Desjouy
+-----------
 """
 
 import re as _re

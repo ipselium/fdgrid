@@ -22,9 +22,10 @@
 # Creation Date : 2019-02-20 - 22:21:14
 """
 -----------
-DOCSTRING
 
-@author: Cyril Desjouy
+fdgrid init file
+
+-----------
 """
 
 __version__ = "0.8.4"

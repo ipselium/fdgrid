@@ -22,10 +22,10 @@
 # pylint: disable=too-many-locals
 """
 -----------
+
 Figure setup functions
 
-
-@author: Cyril Desjouy
+-----------
 """
 
 import numpy as _np

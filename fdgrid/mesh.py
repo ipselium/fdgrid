@@ -23,13 +23,16 @@
 #
 # pylint: disable=too-many-instance-attributes
 # pylint: disable=too-many-arguments
-# pylint: disable=too-many-locals
 """
 -----------
 
-Submodule `mesh` provides the mesh classes.
+Module `mesh` provides three classes to build meshes:
 
-@author: Cyril Desjouy
+    * :py:class:`Mesh`: Build regular cartesian mesh
+    * :py:class:`AdaptativeMesh`: Build adaptative cartesian mesh
+    * :py:class:`CurvilinearMesh`: Build curvilinear mesh
+
+-----------
 """
 
 __all__ = ['Mesh', 'AdaptativeMesh', 'CurvilinearMesh']
@@ -48,18 +51,31 @@ from fdgrid.templates import curv as _curv
 
 
 class Mesh:
-    """ Mesh Class : Construct grid with constant spatial steps
+    """ Build cartesian regular grid
 
     Parameters
     ----------
+    shape : tuple
+        Size of the domain. Must be a tuple with two int objects.
+    step : tuple
+        Spatial steps. Must be a tuple with two float objects.
+    origin : tuple, optional
+        Origin of the grid. Must be a tuple with two int objects.
+    bc : {'[ARZP][ARZP][ARZP][ARZP]'}, optional
+        Boundary conditions. Must be a 4 characters string.
+    obstacles : :py:class:`fdgrid.domains.Domain`, optional
+        Obstacles in the computation domain.
+    Npml : int, optional
+        Number of points of the absorbing area (only if 'A' in `bc`).
+    stencil : int, optional
+        Size of the finite difference stencil (used by :py:mod:`nsfds2`).
 
-    shape : Size of the domain. Must be a 2 elements tuple of int
-    step : Spatial steps. Must be a 2 elements tuple of float
-    origin : Origin of the grid. Must be a 2 elements tuple of int. Optional
-    bc : Boundary conditions. Must be a string of 4 chacracter among 'A', 'R', 'Z' and 'P'
-    obstacles : Domain object. Set of obstacles to consider
-    Npml : Int. Number of points of the absorbing area (if 'A' is in bc). Optional
-    stencil : Int. Size of the finite difference stencil that will be used by nsfds2
+    See also
+    --------
+    :py:class:`AdaptativeMesh`,
+    :py:class:`CurvilinearMesh`,
+    :py:mod:`fdgrid.templates`
+
     """
 
     def __init__(self, shape, step, origin=(0, 0),
@@ -91,11 +107,11 @@ class Mesh:
         self.z = (_np.arange(self.nz)-self.iz0)*self.dz
 
     def N(self, axis):
-        """ Return number of point following 'axis'. """
+        """ Returns the number of points following `axis`. """
         return self.nx if axis == 0 else self.nz if axis == 1 else None
 
     def du(self, axis):
-        """ Return base spacial step following 'axis'. """
+        """ Returns the spacial base step following `axis`. """
         return self.dx if axis == 0 else self.dz if axis == 1 else None
 
     def _limits(self):
@@ -151,13 +167,25 @@ class Mesh:
                      bc_profiles=False, filename=None):
         """ Plot a scheme of the computation domain higlighting the subdomains.
 
-            Parameters
-            ----------
-            legend: Show mesh legend. bool
-            N: Keep one point over N. int
-            filename: save to filename. string
-            figsize: size of the figure. tuple
-            bc_profiles: Show bc profiles. bool
+        Parameters
+        ----------
+        legend: bool, optional
+            Show legend.
+        N: int, optional
+            Plot the grid with one point over N.
+        filename: string, optional
+            Save to `filename`.
+        figsize: tuple, optional
+            Size of the figure.
+        bc_profiles: bool, optional
+            Show velocity profiles for moving boundaries
+
+        See also
+        --------
+        :py:meth:`plot_grid`,
+        :py:meth:`plot_physical`,
+        :py:meth:`plot_xz`
+
         """
 
         _, axes = _plt.subplots(2, 1, figsize=figsize)
@@ -204,24 +232,35 @@ class Mesh:
 
     def plot_grid(self, figsize=(9, 5), N=4, axis=False, legend=False,
                   pml=False, bc_profiles=False, probes=False, filename=None):
-        """ Grid representation.
+        """ Numerical grid representation.
 
-            Parameters
-            ----------
-            legend: Show mesh legend. bool
-            N: Keep one point over N. int
-            filename: save to filename. string
-            figsize: size of the figure. tuple
-            pml: Show PML. bool
-            bc_profiles: Show bc profiles. bool
+        Parameters
+        ----------
 
-            BUG
-            ---
-            Note that the curves dx'/dx are not representative on the edges because
-            of the gradient.
+        legend: bool, optional
+            Show legend.
+        N: int, optional
+            Plot the grid with one point over N.
+        filename: string, optional
+            Save to `filename`.
+        figsize: tuple, optional
+            Size of the figure.
+        pml: bool, optional
+            Show absorbing area in the figure.
+        bc_profiles: bool, optional
+            Show velocity profiles for moving boundaries
+
+        Important
+        ---------
+        The curves :math:`dx'/dx` are not representative on the edges because
+        of the gradient.
+
+        See also
+        --------
+        :py:meth:`plot_physical`,
+        :py:meth:`plot_xz`
+
         """
-
-        nullfmt = _ticker.NullFormatter()         # no labels
 
         fig, ax_c = _plt.subplots(figsize=figsize)
         fig.subplots_adjust(.1, .1, .95, .95)
@@ -264,14 +303,14 @@ class Mesh:
 
             for ax in [ax_xa, ax_xb]:
                 ax.set_xlim(ax_c.get_xlim())
-                ax.xaxis.set_major_formatter(nullfmt)  # no label
+                ax.xaxis.set_major_formatter(_ticker.NullFormatter())  # no label
                 for j in self._limits()[0]:
                     if j[-1] == 'o':
                         ax.axvspan(self.x[j[0]], self.x[j[1]], facecolor='k', alpha=0.5)
 
             for ax in [ax_za, ax_zb]:
                 ax.set_ylim(ax_c.get_ylim())
-                ax.yaxis.set_major_formatter(nullfmt)  # no label
+                ax.yaxis.set_major_formatter(_ticker.NullFormatter())  # no label
                 for j in self._limits()[1]:
                     if j[-1] == 'o':
                         ax.axhspan(self.z[j[0]], self.z[j[1]], facecolor='k', alpha=0.5)
@@ -281,7 +320,15 @@ class Mesh:
 
     def plot_physical(self, figsize=(9, 4), legend=False,
                       pml=False, bc_profiles=False, probes=False, filename=None):
-        """ Plot physical grid. """
+        """ Physical grid representation.
+
+
+        See also
+        --------
+        :py:meth:`plot_grid`,
+        :py:meth:`plot_xz`
+
+        """
 
         self.plot_grid(figsize=figsize, pml=pml, legend=legend,
                        bc_profiles=bc_profiles, probes=probes, filename=filename)
@@ -289,10 +336,18 @@ class Mesh:
     def plot_xz(self, figsize=(9, 4), filename=None):
         """ Plot x & z axis.
 
-            Parameters
-            ----------
-            filename: save to filename. string
-            figsize: size of the figure. tuple
+        Parameters
+        ----------
+        filename : str, optional
+            Save figure to filename.
+        figsize : tuple, optional
+            Size of the figure.
+
+        See also
+        --------
+        :py:meth:`plot_physical`,
+        :py:meth:`plot_xz`
+
         """
 
         _, axes = _plt.subplots(2, 2, figsize=figsize)
@@ -348,21 +403,22 @@ class Mesh:
 
 
 class AdaptativeMesh(Mesh):
-    """ AdaptativeMesh Class : Construct grid with adaptative spatial steps
+    """ Build cartesian adaptative grid
 
     Parameters
     ----------
+    dilatation : float
+        dilatation rate over `Nd` points.
+    Nd : int
+        Number of point of adaptative areas.
+    only_pml : bool
+        Only adapt grid in PML areas.
 
-    shape : Size of the domain. Must be a 2 elements tuple of int
-    step : Spatial steps. Must be a 2 elements tuple of float
-    origin : Origin of the grid. Must be a 2 elements tuple of int. Optional
-    bc : Boundary conditions. Must be a string of 4 chacracter among 'A', 'R', 'Z' and 'P'
-    obstacles : Domain object. Set of obstacles to consider
-    Npml : Int. Number of points of the absorbing area (if 'A' is in bc). Optional
-    stencil : Int. Size of the finite difference stencil that will be used by nsfds2
-    dilatation : dilatation rate over Nd points. Float.
-    Nd : Number of point of adaptative areas. Integer
-    only_pml : Adaptative mesh only in PML areas. Boolean.
+    See also
+    --------
+    :py:class:`Mesh`,
+    :py:mod:`fdgrid.templates`
+
     """
 
     def __init__(self, shape, step, origin=(0, 0),
@@ -584,20 +640,18 @@ class AdaptativeMesh(Mesh):
 
 
 class CurvilinearMesh(Mesh):
-    """ CurvilinearMesh Class : Construct grid using curvilinear coordinates
+    """ Build curvilinear grid
 
     Parameters
     ----------
+    fcurvxz : function, optional
+        Function taking as input arguments the numerical coordinates ('xn', 'yn')
+        and returning the physical coordinates ('xp', 'zp').
 
-    shape : Size of the domain. Must be a 2 elements tuple of int
-    step : Spatial steps. Must be a 2 elements tuple of float
-    origin : Origin of the grid. Must be a 2 elements tuple of int. Optional
-    bc : Boundary conditions. Must be a string of 4 chacracter among 'A', 'R', 'Z' and 'P'
-    obstacles : Domain object. Set of obstacles to consider
-    Npml : Int. Number of points of the absorbing area (if 'A' is in bc). Optional
-    stencil : Int. Size of the finite difference stencil that will be used by nsfds2
-    fcurvxz : function taking as input arguments the numerical coordinates (xn/yn)
-              and returning the physical coordinates (xp/zp)
+    See also
+    --------
+    :py:class:`Mesh`,
+    :py:mod:`fdgrid.templates`
     """
 
     def __init__(self, shape, step, origin=(0, 0),
@@ -614,12 +668,20 @@ class CurvilinearMesh(Mesh):
                       pml=False, bc_profiles=False, probes=False, filename=None):
         """ Plot physical and numerical domains.
 
-            Parameters
-            ----------
-            legend: Show mesh legend. bool
-            filename: save to filename. string
-            figsize: size of the figure. tuple
-            pml: Show PML. bool
+        Parameters
+        ----------
+        legend: bool, optional
+            Show legend.
+        N: int, optional
+            Plot the grid with one point over N.
+        filename: string, optional
+            Save to `filename`.
+        figsize: tuple, optional
+            Size of the figure.
+        pml: bool, optional
+            Show absorbing area in the figure.
+        bc_profiles: bool, optional
+            Show velocity profiles for moving boundaries
         """
 
         edgecolor = 'k'
@@ -726,5 +788,5 @@ if __name__ == "__main__":
     obstcle = templates.plus(*shp)
 
 
-    mesh1 = Mesh(shp, stps, orgn, obstacles=obstcle, bc='PAPZ')
-    mesh1.plot_domains(legend=True, N=2)
+    mesh = Mesh(shp, stps, orgn, obstacles=obstcle, bc='PAPZ')
+    mesh.plot_domains(legend=True, N=2)

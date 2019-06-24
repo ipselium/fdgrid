@@ -27,15 +27,13 @@
 """
 -----------
 
-Module `domains` provides two classes:
+Module `domains` provides three main objects:
 
     * Subdomain : dataclass for subdivisions of the computational domain
     * Obstacle : Subdomain subclass with custom boundary possibilities
     * Domain : Container for Subdomain objects
 
-It also provides the fonction `plot_subdomain`.
-
-@author: Cyril Desjouy
+-----------
 """
 
 __all__ = ['Domain', 'Subdomain', 'Obstacle']
@@ -166,11 +164,12 @@ class Domain:
         """
         Append 'val' to the Domain object.
 
-        Arguments :
+        Parameters
         ----------
         val : The object to add to the instance.
               Must be a Subdomain object or a list/tuple of Subdomain objects
         key : new key for val
+
         """
 
         if isinstance(val, Subdomain):
@@ -215,7 +214,8 @@ class Domain:
     def split(self, key, index, nbc=None, axis=None):
         """ Split 'key' subdomain.
 
-        Arguments:
+        Parameters
+        ----------
             index : int|tuple|list
             nbc : Only if index is a sequence. New bc for the domain defined by 'index'
             axis : 0 or 1. Along which axis to split
@@ -553,16 +553,21 @@ class Domain:
 
 @_dataclasses.dataclass
 class Subdomain:
-    """ Subdomain of the computation domain.
+    """ Subdivision of the computation domain.
 
     Parameters
     ----------
 
-    xz : Coordinates of the Subdomain : left, bottom, right, top
-    bc : Boundary conditions. Must be a string of 4 chacracter among 'A', 'R', 'Z' and 'P'
-    key : Key of the subdomain. Optional
-    axis : 0 or 1. The direction of the subdomain if relevant. Optional.
-    tag : str. The type of Subdomain. Optional
+    xz : list
+        Coordinates of the Subdomain : left, bottom, right, top
+    bc : str
+        Boundary conditions. Must be a string of 4 characters among 'A', 'R', 'Z' and 'P'
+    key : int, optional
+        Key of the subdomain.
+    axis : {0, 1}, optional
+        The direction of the subdomain if relevant.
+    tag : str, optional
+        The type of Subdomain.
     """
 
     xz: tuple
@@ -676,15 +681,21 @@ class Subdomain:
         return self.bc
 
     def split(self, index, nbc=None, axis=None):
-        """ Split the subdomain along axis'.
+        """
+        Split the subdomain into several new subdomains.
+
         If index is integer, split into two Subdomain objects at 'index'.
         If index is tuple/list (len(index) must be 2), split into 3 (or less)
         Subdomain objects.
 
-        Arguments:
-            index : int|tuple|list
-            nbc : Only if index is a sequence. New bc for the domain defined by 'index'
-            axis : 0 or 1. Along which axis to split
+        Parameters
+        ----------
+            index : {int, tuple, list}
+                Where to split the subdomain
+            nbc : str
+                Only if index is a sequence. New bc for the domain defined by 'index'
+            axis : {0, 1}
+                Along which axis to split
         """
 
         subkey = (i for i in range(1, 4))
@@ -807,6 +818,7 @@ class Edges:
     sz: slice = 0
     axis: int = 0
 
+
 class Obstacle(Subdomain):
     """ Obstacle object.
 
@@ -825,42 +837,53 @@ class Obstacle(Subdomain):
         self.edges = []
 
     def set_moving_bc(self, *args):
-        """ Set parameters for moving bc. For each moving bc of the obstacle,
+        """
+        Set parameters for moving bc. For each moving bc of the obstacle,
         you can specify the parameters as a dictionnary containing the
         following optional keys :
 
         Parameters
         ----------
+        f_n : float, str
+            frequency of the normal velocity.
+        f_t : float
+            frequency of the tangential velocity.
+        A_n : float
+            Amplitude of the normal velocity
+        A_t : float
+            Amplitude of the tangential velocity
+        phi_n : float
+            Phase of the normal velocity
+        phi_t : float
+            Phase of the tangential velocity
+        func_r : {'sine', 'tukey', 'flat'}
+            Function for normal velocity profile construction
+        func_t : {'sine', 'tukey', 'flat'}
+            Function for tangential velocity profile construction
+        kwargs_n : dict
+            optional arguments for func_r
+        kwargs_t : dict
+            optional arguments for func_t
 
-        f or f_n : frequency of the normal velocity
-        f_t : frequency of the tangential velocity
-        A or A_n : Amplitude of the normal velocity
-        A_t : Amplitude of the tangential velocity
-        phi or phi_n : Phase of the normal velocity
-        phi_t : Phase of the tangential velocity
-        func or func_r : Function for normal velocity profile construction
-        func or func_t : Function for tangential velocity profile construction
-        kwargs or kwargs_n : optional arguments for func_r
-        kwargs_t : optional arguments for func_t
+        Note
+        ----
 
-        Available functions
-        -------------------
+        `func_n` and `func_r` arguments can be:
 
-        sine: sinus profile
-              kwargs - n : wavelength (default: 2 for half a period)
-        tukey: tapered cosine
-               kwargs - alpha : edge width (default: 0.2)
-        flat: constant profile
+        * 'sine' : sinus profile => n : wavelength (default: 2 for half a period)
+        * 'tukey' : tapered cosine => alpha : edge width (default: 0.2)
+        * 'flat' : constant profile
 
-        Example
-        -------
+        Examples
+        --------
 
-        obs1 = Obstacle([10, 10, 100, 100], 'VVRV')
+        >>> obs1 = Obstacle([10, 10, 100, 100], 'VVRV')
 
-        obs1.set_moving_bc({'f': 100, 'A': 2.1, 'func': 'sine',
-                            'f_t': 1000, 'A_t': 0.1, 'func_t': 'flat'},
-                           {'f': 500, 'A': -1.5, 'func': 'tukey'},
-                           {'f': 500, 'A': 1.5 'func': 'tukey'})
+        >>> obs1.set_moving_bc({'f': 100, 'A': 2.1, 'func': 'sine',
+                                'f_t': 1000, 'A_t': 0.1, 'func_t': 'flat'},
+                               {'f': 500, 'A': -1.5, 'func': 'tukey'},
+                               {'f': 500, 'A': 1.5 'func': 'tukey'})
+
         """
 
         args = iter(list(args) + (4-len(args))*[dict()])

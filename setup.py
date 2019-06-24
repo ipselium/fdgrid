@@ -34,8 +34,8 @@ setup(
 
     name='fdgrid',
     description="Grid generator",
-    long_description=open('README.md').read(),
-    long_description_content_type='text/markdown',
+    long_description=open('README.rst').read(),
+    long_description_content_type='text/x-rst',
     version='0.8.4',
     license="GPL",
     url='http://github.com/ipselium/fdgrid',
