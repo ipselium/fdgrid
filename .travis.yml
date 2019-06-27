@@ -1,0 +1,33 @@
+language: python
+matrix:
+  include:
+    - name: "Python 3.7 on linux"
+      python: 3.7           # this works for Linux but is ignored on macOS or Windows
+      dist: xenial          # required for Python >= 3.7
+      # Manage the C/C++ compiler manually
+      env:
+          - CC=gcc     CXX=g++
+          - CC=gcc-4.8 CXX=g++-4.8
+          - CC=gcc-4.9 CXX=g++-4.9
+          - CC=gcc-5   CXX=g++-5
+          - CC=clang   CXX=clang++
+      addons:
+          apt:
+              sources:
+                  - ubuntu-toolchain-r-test
+              packages:
+                  - gcc-4.8
+                  - g++-4.8
+                  - gcc-4.9
+                  - g++-4.9
+                  - gcc-5
+                  - g++-5
+    - name: "Python 3.7 on macOS"
+      os: osx
+      osx_image: xcode10.2  # Python 3.7.2 running on macOS 10.14.3
+      language: shell
+# command to install dependencies
+install:
+  - pip3 install -q -e .
+script:
+  - python3 tests/tests.py

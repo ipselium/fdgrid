@@ -322,3 +322,7 @@ def moving_square(nx, nz, size_percent=20):
     obs2.set_moving_bc({'f': 73000, 'A': -1, 'func': 'flat'})
 
     return Domain((nx, nz), data=[obs1, obs2])
+
+
+def test_all():
+    return [testcase1, plus, square]

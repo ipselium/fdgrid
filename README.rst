@@ -1,8 +1,8 @@
 Introducing fdgrid
 ==================
 
-.. image:: https://badge.fury.io/py/fdgrid.svg
-    :target: https://badge.fury.io/py/fdgrid.svg
+|Pypi| |Build| |Licence|
+
 
 .. image:: https://github.com/ipselium/fdgrid/blob/master/docs/source/images/fdgrid.png
 
@@ -47,3 +47,13 @@ Links
 - **Source code:** https://github.com/ipselium/fdgrid
 - **Bug reports:** https://github.com/ipselium/fdgrid/issues
 - **nsfds2:** https://github.com/ipselium/nsfds2
+
+
+.. |Pypi| image:: https://badge.fury.io/py/fdgrid.svg
+    :target: https://pypi.org/project/fdgrid
+    :alt: Pypi Package
+
+.. |Licence| image:: https://img.shields.io/github/license/ipselium/fdgrid.svg
+
+.. |Build| image:: https://travis-ci.org/ipselium/fdgrid.svg?branch=master
+    :target: https://travis-ci.org/ipselium/fdgrid
