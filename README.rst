@@ -28,7 +28,7 @@ Requirements
 Installation
 ------------
 
-Clone the repo and
+Clone the github repo and
 
 .. code:: console
 
