@@ -120,7 +120,16 @@ class Mesh:
         return xlim, zlim
 
     def _find_subdomains(self):
-        """ Divide the computation domain in subdomains. """
+        """ Divide the computation domain into subdomains.
+
+        dx/dzdomains : for x/z derivatives
+        fx/fzdomains : for x/z filters
+
+        dsdomains : smallest domain among dx/dzdomains
+        fsdomains : smallest domain among fx/fzdomains
+        adomains : for PML
+
+        """
 
         self.domain = ComputationDomains((self.nx, self.nz), self.obstacles,
                                          self.bc, self.stencil, self.Npml)

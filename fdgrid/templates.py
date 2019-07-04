@@ -71,7 +71,8 @@ def circle(xn, zn):
     """ Curvilinear coordinates: test case 3. The circle. """
 
     width = xn[-1, 0] - xn[0, 0]
-    R = width/(2*_np.pi)
+    dx = xn[1, 0] - x[0, 0]
+    R = (width+dx)/(2*_np.pi)
     xp = (zn + R)*_np.sin(xn/R)
     zp = (zn + R)*_np.cos(xn/R)
 
