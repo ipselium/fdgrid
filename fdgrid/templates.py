@@ -101,15 +101,15 @@ def section(xn, zn, variation=25, zmin=5, zmax=-5):
 def testcase1(nx, nz):
     """ Geometry: Test case 1. Complex geometry. """
 
-    geo = [Obstacle([0, 0, 60, 40], 'RRRR'),
-           Obstacle([26, 40, 33, 50], 'RRRR'),
-           Obstacle([56, 40, 60, 60], 'RRRR'),
-           Obstacle([100, 80, 120, 90], 'RRRR'),
-           Obstacle([90, 26, 110, 36], 'RRRR'),
-           Obstacle([nx-90, nz-90, nx-60, nz-1], 'RRRR'),
-           Obstacle([nx-60, nz-17, nx-1, nz-1], 'RRRR'),
-           Obstacle([nx-60, nz-44, nx-30, nz-40], 'RRRR'),
-           Obstacle([nx-60, nz-80, nx-40, nz-67], 'RRRR')]
+    geo = [Obstacle([0, 0, 60, 40], 'WWWW'),
+           Obstacle([26, 40, 33, 50], 'WWWW'),
+           Obstacle([56, 40, 60, 60], 'WWWW'),
+           Obstacle([100, 80, 120, 90], 'WWWW'),
+           Obstacle([90, 26, 110, 36], 'WWWW'),
+           Obstacle([nx-90, nz-90, nx-60, nz-1], 'WWWW'),
+           Obstacle([nx-60, nz-17, nx-1, nz-1], 'WWWW'),
+           Obstacle([nx-60, nz-44, nx-30, nz-40], 'WWWW'),
+           Obstacle([nx-60, nz-80, nx-40, nz-67], 'WWWW')]
 
     return Domain((nx, nz), data=geo)
 
@@ -119,11 +119,11 @@ def testcase2(nx, nz):
 
     PML = 16
 
-    geo = [Obstacle([0, 0, PML, PML], 'RRRR'),
-           Obstacle([0, PML+23, PML, int(3*nz/4)-5], 'RRRR'),
-           Obstacle([30, nz-PML-1, int(nx/2)+10, nz-1], 'RRRR'),
-           Obstacle([int(nx/2), 0, int(3*nx/4), PML], 'RRRR'),
-           Obstacle([nx-PML-1, int(3*nz/4), nx-1, int(3*nz/4)+10], 'RRRR')]
+    geo = [Obstacle([0, 0, PML, PML], 'WWWW'),
+           Obstacle([0, PML+23, PML, int(3*nz/4)-5], 'WWWW'),
+           Obstacle([30, nz-PML-1, int(nx/2)+10, nz-1], 'WWWW'),
+           Obstacle([int(nx/2), 0, int(3*nx/4), PML], 'WWWW'),
+           Obstacle([nx-PML-1, int(3*nz/4), nx-1, int(3*nz/4)+10], 'WWWW')]
 
     return Domain((nx, nz), data=geo)
 
@@ -156,10 +156,10 @@ def helmholtz(nx, nz, cavity=(0.2, 0.2), neck=(0.1, 0.1)):
     if cavity[0] + neck[0] > 0.98 or cavity[1] + neck[1] > 0.98:
         raise _exceptions.TemplateConstructionError("resonator must be smaller than the domain")
 
-    geo = [Obstacle([0, 0, cvty_ix, cvty_hght], 'RRRR'),
-           Obstacle([cvty_ix+cvty_wdth, 0, nx-1, cvty_hght], 'RRRR'),
-           Obstacle([0, cvty_hght, neck_ix, cvty_hght+neck_hght], 'RRRR'),
-           Obstacle([neck_ix+neck_wdth, cvty_hght, nx-1, cvty_hght+neck_hght], 'RRRR')]
+    geo = [Obstacle([0, 0, cvty_ix, cvty_hght], 'WWWW'),
+           Obstacle([cvty_ix+cvty_wdth, 0, nx-1, cvty_hght], 'WWWW'),
+           Obstacle([0, cvty_hght, neck_ix, cvty_hght+neck_hght], 'WWWW'),
+           Obstacle([neck_ix+neck_wdth, cvty_hght, nx-1, cvty_hght+neck_hght], 'WWWW')]
 
     return Domain((nx, nz), data=geo)
 
@@ -200,15 +200,15 @@ def helmholtz_double(nx, nz, cavity=(0.2, 0.2), neck=(0.1, 0.1)):
     if cavity[0] + neck[0] > 0.98 or cavity[1] + neck[1] > 0.98:
         raise _exceptions.TemplateConstructionError("resonator must be smaller than the domain")
 
-    geo = [Obstacle([0, 0, cvty_ix, xcvty_hght], 'RRRR'),
-           Obstacle([cvty_ix+xcvty_wdth, 0, nx-1, xcvty_hght], 'RRRR'),
-           Obstacle([0, xcvty_hght, neck_ix, xcvty_hght+xneck_hght], 'RRRR'),
-           Obstacle([neck_ix+xneck_wdth, xcvty_hght, nx-1, xcvty_hght+xneck_hght], 'RRRR'),
-           Obstacle([nx-zcvty_hght, xcvty_hght+xneck_hght, nx-1, cvty_iz], 'RRRR'),
-           Obstacle([nx-zcvty_hght, cvty_iz+zcvty_wdth, nx-1, nz-1], 'RRRR'),
-           Obstacle([nx-zcvty_hght-zneck_hght, neck_iz+zneck_wdth, nx-zcvty_hght, nz-1], 'RRRR'),
+    geo = [Obstacle([0, 0, cvty_ix, xcvty_hght], 'WWWW'),
+           Obstacle([cvty_ix+xcvty_wdth, 0, nx-1, xcvty_hght], 'WWWW'),
+           Obstacle([0, xcvty_hght, neck_ix, xcvty_hght+xneck_hght], 'WWWW'),
+           Obstacle([neck_ix+xneck_wdth, xcvty_hght, nx-1, xcvty_hght+xneck_hght], 'WWWW'),
+           Obstacle([nx-zcvty_hght, xcvty_hght+xneck_hght, nx-1, cvty_iz], 'WWWW'),
+           Obstacle([nx-zcvty_hght, cvty_iz+zcvty_wdth, nx-1, nz-1], 'WWWW'),
+           Obstacle([nx-zcvty_hght-zneck_hght, neck_iz+zneck_wdth, nx-zcvty_hght, nz-1], 'WWWW'),
            Obstacle([nx-zcvty_hght-zneck_hght, xcvty_hght+xneck_hght,
-                     nx-zcvty_hght, neck_iz], 'RRRR')
+                     nx-zcvty_hght, neck_iz], 'WWWW')
           ]
 
     return Domain((nx, nz), data=geo)
@@ -244,10 +244,10 @@ def plus(nx, nz, ix0=None, iz0=None, size=20):
     ixstart = int(ix0 - 1.5*size)
     izstart = int(iz0 - 0.5*size)
 
-    geo = [Obstacle([ixstart, izstart, ixstart+size, izstart+size], 'RRRR'),
-           Obstacle([ixstart+2*size, izstart, ixstart+3*size, izstart+size], 'RRRR'),
-           Obstacle([ixstart+size, izstart-size, ixstart+2*size, izstart], 'RRRR'),
-           Obstacle([ixstart+size, izstart+size, ixstart+2*size, izstart+2*size], 'RRRR')]
+    geo = [Obstacle([ixstart, izstart, ixstart+size, izstart+size], 'WWWW'),
+           Obstacle([ixstart+2*size, izstart, ixstart+3*size, izstart+size], 'WWWW'),
+           Obstacle([ixstart+size, izstart-size, ixstart+2*size, izstart], 'WWWW'),
+           Obstacle([ixstart+size, izstart+size, ixstart+2*size, izstart+2*size], 'WWWW')]
 
     return Domain((nx, nz), data=geo)
 
@@ -267,7 +267,7 @@ def square(nx, nz, size_percent=20):
 
     size = int(min(nx, nz)*size_percent/100)
     geo = [Obstacle([int(nx/2)-size, int(nz/2)-size,
-                     int(nx/2)+size, int(nz/2)+size], 'RRRR')]
+                     int(nx/2)+size, int(nz/2)+size], 'WWWW')]
 
     return Domain((nx, nz), data=geo)
 
@@ -283,17 +283,17 @@ def street(nx, nz):
         Height of the domain.
     """
 
-    geo = [Obstacle([0, 0, int(0.7*nx), int(nz*0.25)], 'RRRR'),
-           Obstacle([int(0.8*nx), 0, nx-1, int(nz*0.25)], 'RRRR'),
-           Obstacle([0, int(nz*0.75), nx-1, nz-1], 'RRRR'),
-           Obstacle([int(0.11*nx), int(nz*0.7), int(0.15*nx), int(0.75*nz)], 'RRRR'),
-           Obstacle([int(0.35*nx), int(nz*0.69), int(0.50*nx), int(0.75*nz)], 'RRRR'),
-           Obstacle([int(0.60*nx), int(nz*0.72), int(0.70*nx), int(0.75*nz)], 'RRRR'),
-           Obstacle([int(0.80*nx), int(nz*0.73), int(0.89*nx), int(0.75*nz)], 'RRRR'),
-           Obstacle([int(0.80*nx), int(nz*0.25), int(0.89*nx), int(0.30*nz)], 'RRRR'),
-           Obstacle([int(0.13*nx), int(nz*0.25), int(0.20*nx), int(0.30*nz)], 'RRRR'),
-           Obstacle([int(0.30*nx), int(nz*0.25), int(0.38*nx), int(0.28*nz)], 'RRRR'),
-           Obstacle([int(0.55*nx), int(nz*0.25), int(0.70*nx), int(0.28*nz)], 'RRRR')]
+    geo = [Obstacle([0, 0, int(0.7*nx), int(nz*0.25)], 'WWWW'),
+           Obstacle([int(0.8*nx), 0, nx-1, int(nz*0.25)], 'WWWW'),
+           Obstacle([0, int(nz*0.75), nx-1, nz-1], 'WWWW'),
+           Obstacle([int(0.11*nx), int(nz*0.7), int(0.15*nx), int(0.75*nz)], 'WWWW'),
+           Obstacle([int(0.35*nx), int(nz*0.69), int(0.50*nx), int(0.75*nz)], 'WWWW'),
+           Obstacle([int(0.60*nx), int(nz*0.72), int(0.70*nx), int(0.75*nz)], 'WWWW'),
+           Obstacle([int(0.80*nx), int(nz*0.73), int(0.89*nx), int(0.75*nz)], 'WWWW'),
+           Obstacle([int(0.80*nx), int(nz*0.25), int(0.89*nx), int(0.30*nz)], 'WWWW'),
+           Obstacle([int(0.13*nx), int(nz*0.25), int(0.20*nx), int(0.30*nz)], 'WWWW'),
+           Obstacle([int(0.30*nx), int(nz*0.25), int(0.38*nx), int(0.28*nz)], 'WWWW'),
+           Obstacle([int(0.55*nx), int(nz*0.25), int(0.70*nx), int(0.28*nz)], 'WWWW')]
 
     return Domain((nx, nz), data=geo)
 
@@ -314,8 +314,8 @@ def moving_square(nx, nz, size_percent=20):
     size = int(min(nx, nz)*size_percent/100)
 
     obs1 = Obstacle([int(nx/2)-size, int(nz/2)-size,
-                     int(nx/2)+size, int(nz/2)+size], 'VVRV')
-    obs2 = Obstacle([nx-11, 0, nx-1, nz-1], 'VRRR')
+                     int(nx/2)+size, int(nz/2)+size], 'VVWV')
+    obs2 = Obstacle([nx-11, 0, nx-1, nz-1], 'VWWW')
 
     obs1.set_moving_bc({'f': 70000, 'A': 1, 'func': 'sine'},
                        {'f': 30000, 'A': -1, 'func': 'tukey'},

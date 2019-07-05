@@ -61,7 +61,7 @@ class Mesh:
         Spatial steps. Must be a tuple with two float objects.
     origin : tuple, optional
         Origin of the grid. Must be a tuple with two int objects.
-    bc : {'[ARZP][ARZP][ARZP][ARZP]'}, optional
+    bc : {'[ARZPW][ARZPW][ARZPW][ARZPW]'}, optional
         Boundary conditions. Must be a 4 characters string.
     obstacles : :py:class:`fdgrid.domains.Domain`, optional
         Obstacles in the computation domain.
@@ -79,7 +79,7 @@ class Mesh:
     """
 
     def __init__(self, shape, step, origin=(0, 0),
-                 bc='RRRR', obstacles=None, Npml=15, stencil=11):
+                 bc='WWWW', obstacles=None, Npml=15, stencil=11):
 
 
         self.shape = shape
@@ -151,8 +151,8 @@ class Mesh:
 
         regex = [r'[^P].P.', r'P.[^P].', r'.[^P].P', r'.P.[^P]']
 
-        if not _re.match(r'^[ZRAP]*$', self.bc):
-            raise _exceptions.BoundaryConditionError("bc must be combination of 'ZRAP'!")
+        if not _re.match(r'^[ZRAPW]*$', self.bc):
+            raise _exceptions.BoundaryConditionError("bc must be combination of 'ZRAPW'!")
 
         if any(_re.match(r, self.bc) for r in regex):
             msg = "periodic condition must be on both sides of the domain,"
@@ -431,7 +431,7 @@ class AdaptativeMesh(Mesh):
     """
 
     def __init__(self, shape, step, origin=(0, 0),
-                 bc='RRRR', obstacles=None, Npml=15, stencil=11,
+                 bc='WWWW', obstacles=None, Npml=15, stencil=11,
                  dilatation=3., Nd=23, only_pml=False):
 
         self.only_pml = only_pml
@@ -477,14 +477,14 @@ class AdaptativeMesh(Mesh):
         if self.bc[axis] == 'A':
             a[:self.Npml] = self.stretch_PML
 
-        elif self.bc[axis] in ['R', 'Z']:
+        elif self.bc[axis] in ['W', 'Z']:
             a[start:start+self.stencil] = self.amin
             a[start+self.stencil:start+self.stencil+self.N] = self.stretch[::-1]
 
         if self.bc[axis+2] == 'A':
             a[stop-self.Npml+1:] = self.stretch_PML[::-1]
 
-        elif self.bc[axis+2] in ['R', 'Z']:
+        elif self.bc[axis+2] in ['W', 'Z']:
             a[stop-self.stencil:stop+1] = self.amin
             a[stop-self.stencil-self.N+1:stop-self.stencil+1] = self.stretch
 
@@ -664,7 +664,7 @@ class CurvilinearMesh(Mesh):
     """
 
     def __init__(self, shape, step, origin=(0, 0),
-                 bc='RRRR', obstacles=None, Npml=15, stencil=11, fcurvxz=_curv):
+                 bc='WWWW', obstacles=None, Npml=15, stencil=11, fcurvxz=_curv):
 
         if not fcurvxz:
             self.fcurvxz = _curv

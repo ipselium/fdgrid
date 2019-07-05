@@ -53,7 +53,7 @@ class ComputationDomains:
         Size of the domain. Must be a tuple with two int objects.
     obstacles : :py:class:`fdgrid.domains.Domain`, optional
         Obstacles in the computation domain.
-    bc : {'[ARZP][ARZP][ARZP][ARZP]'}, optional
+    bc : {'[ARZPW][ARZPW][ARZPW][ARZPW]'}, optional
         Boundary conditions. Must be a 4 characters string.
     Npml : int, optional
         Number of points of the absorbing area (only if 'A' in `bc`).
@@ -126,6 +126,9 @@ class ComputationDomains:
             self._fdomain_bc()
             self._built_pml()
 
+        if 'R' in self._bc:
+            pass
+
         # Check if Subdomain are larger enough for stencil
         self._check_stencil()
 
@@ -135,20 +138,20 @@ class ComputationDomains:
         self.adomains.sort(inplace=True)
 
     def _check_obstacles(self):
-        """ check if obstacles bc are 'ZRV'. """
+        """ check if obstacles bc are 'ZWV'. """
 
         for obs in self._obstacles:
-            if not _re.match(r'^[ZRV]+$', obs.bc):
-                msg = "Obstacle bc must be combination of 'ZRV'"
+            if not _re.match(r'^[ZWV]+$', obs.bc):
+                msg = "Obstacle bc must be combination of 'ZWV'"
                 raise _exceptions.BoundaryConditionError(msg)
 
     def _fdomain_bc(self):
-        """ Change all 'A' for 'R' in filter domains. """
+        """ Change all 'A' for 'W' in filter domains. """
 
         for fdomain in [self.fxdomains, self.fzdomains]:
             for sub in fdomain:
                 if 'A' in sub.bc:
-                    sub.bc = sub.bc.replace('A', 'R')
+                    sub.bc = sub.bc.replace('A', 'W')
 
     def _check_stencil(self):
         """ Check if Subdomain are larger enough considering the stencil. """
@@ -156,18 +159,18 @@ class ComputationDomains:
         msg = "{} too small considering stencil"
 
         for sub in self.dxdomains:
-            if len(sub.rx) < 2*self._stencil + 1 and sub.bc == "RR":
+            if len(sub.rx) < 2*self._stencil + 1 and sub.bc == "WW":
                 raise _exceptions.CloseObstaclesError(msg.format(sub))
 
         for sub in self.dzdomains:
-            if len(sub.rz) < 2*self._stencil + 1 and sub.bc == "RR":
+            if len(sub.rz) < 2*self._stencil + 1 and sub.bc == "WW":
                 raise _exceptions.CloseObstaclesError(msg.format(sub))
 
         for sub in self.adomains:
-            if sub.axis == 0 and len(sub.rz) < 2*self._stencil and _re.match(r'.R.R', sub.bc):
+            if sub.axis == 0 and len(sub.rz) < 2*self._stencil and _re.match(r'.W.W', sub.bc):
                 raise _exceptions.CloseObstaclesError(msg.format(sub))
 
-            if sub.axis == 1 and len(sub.rx) < 2*self._stencil and _re.match(r'R.R.', sub.bc):
+            if sub.axis == 1 and len(sub.rx) < 2*self._stencil and _re.match(r'W.W.', sub.bc):
                 raise _exceptions.CloseObstaclesError(msg.format(sub))
 
     def _built_pml(self):
@@ -349,7 +352,7 @@ class ComputationDomains:
             mk = self._zmask[xc1+1:xc2, j]
             if _np.any(mk != 0):
                 if _np.all(mk == -2):
-                    bc = '.{}.R'.format(obs.bc[3])
+                    bc = '.{}.W'.format(obs.bc[3])
                 elif _np.any(mk == -2):
                     zc2 = int((zc1+zc2)/2 - 1)
                     bc = '.{}.X'.format(obs.bc[3])
@@ -374,7 +377,7 @@ class ComputationDomains:
             mk = self._zmask[xc1+1:xc2, j]
             if _np.any(mk != 0):
                 if _np.all(mk == -2):
-                    bc = '.R.{}'.format(obs.bc[1])
+                    bc = '.W.{}'.format(obs.bc[1])
                 elif _np.any(mk == -2):
                     zc2 = int((zc1+zc2)/2 + 1)
                     bc = '.X.{}'.format(obs.bc[1])
@@ -398,7 +401,7 @@ class ComputationDomains:
             mk = self._xmask[i, zc1+1:zc2]
             if _np.any(mk != 0):
                 if _np.all(mk != 0):
-                    bc = '{}.R.'.format(obs.bc[2])
+                    bc = '{}.W.'.format(obs.bc[2])
                 elif _np.any(mk == -2):
                     xc2 = int((xc1+xc2)/2 - 1)
                     bc = '{}.X.'.format(obs.bc[2])
@@ -423,7 +426,7 @@ class ComputationDomains:
             mk = self._xmask[i, zc1+1:zc2]
             if _np.any(mk != 0):
                 if _np.all(mk == -2):
-                    bc = 'R.{}.'.format(obs.bc[0])
+                    bc = 'W.{}.'.format(obs.bc[0])
                 elif _np.any(mk == -2):
                     xc2 = int((xc1+xc2)/2 + 1)
                     bc = 'X.{}.'.format(obs.bc[0])
@@ -487,19 +490,19 @@ class ComputationDomains:
                                            axis=1, tag='X'))
 
     def _update_patches(self):
-        """ Add patches. TODO : Fix 'else R' if an obstacle has another bc !"""
+        """ Add patches. TODO : Fix 'else W' if an obstacle has another bc !"""
 
         for patch in _utils.find_areas(self._xmask, val=-2):
             bc = ['.', '.', '.', '.']
             if patch[0] == 0:
                 bc[0] = self._bc[0]
             else:
-                bc[0] = 'X' if self._xmask[patch[0]-1, patch[1]] == 1 else 'R'
+                bc[0] = 'X' if self._xmask[patch[0]-1, patch[1]] == 1 else 'W'
 
             if patch[2] == self._nx - 1:
                 bc[2] = self._bc[2]
             else:
-                bc[2] = 'X' if self._xmask[patch[2]+1, patch[1]] == 1 else 'R'
+                bc[2] = 'X' if self._xmask[patch[2]+1, patch[1]] == 1 else 'W'
 
             self._update_domains(Subdomain(patch, axis=0, key=self._ndx,
                                            bc=''.join(bc), tag='W'))
@@ -509,12 +512,12 @@ class ComputationDomains:
             if patch[1] == 0:
                 bc[1] = self._bc[1]
             else:
-                bc[1] = 'X' if self._xmask[patch[0], patch[1]-1] == 1 else 'R'
+                bc[1] = 'X' if self._xmask[patch[0], patch[1]-1] == 1 else 'W'
 
             if patch[3] == self._nz - 1:
                 bc[3] = self._bc[3]
             else:
-                bc[3] = 'X' if self._xmask[patch[0], patch[3]+1] == 1 else 'R'
+                bc[3] = 'X' if self._xmask[patch[0], patch[3]+1] == 1 else 'W'
 
             self._update_domains(Subdomain(patch, axis=1, key=self._ndz,
                                            bc=''.join(bc), tag='W'))
@@ -693,5 +696,5 @@ if __name__ == "__main__":
 
     domain = ComputationDomains((nx, nz),
                                 obstacles=templates.helmholtz(nx, nz),
-                                stencil=11, bc='RRRR')
+                                stencil=11, bc='WWWW')
     print(domain)

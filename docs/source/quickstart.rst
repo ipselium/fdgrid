@@ -8,10 +8,10 @@ Construction rules
 * **Boundary conditions (bc)** -- Rules raising `BoundaryConditionError`
   exception if not respected:
 
-    * **bc** of the domain must be a combination of **'ZRAP'** as for
-      (**Z**)impedance, (**R**)igid, (**A**)bsorbing, and (**P**)eriodic
+    * **bc** of the domain must be a combination of **'ZRAPW'** as for
+      (**Z**)impedance, (**W**)all, (**A**)bsorbing, (**R**)adiation, and (**P**)eriodic
     * **bc** of each `Obstacle` object must be a combination of
-      (**Z**)impedance, (**R**)igid, (V) velocity
+      (**Z**)impedance, (**W**)all, (V) velocity
     * If periodic (**P**) is chosen as boundary condition for an edge of the
       domain, '**P**' must also be chosen as boundary condition for the edge
       facing it
@@ -43,7 +43,7 @@ Creation of set of obstacles
 * Use `Obstacle` to create an obstacle:
 
     * First argument is a list of coordinates as *[left, bottom, right, top]*
-    * Second argument is the boundary conditions [*(R)igid, (V) velocity,
+    * Second argument is the boundary conditions [*(W)all, (V) velocity,
       (Z)impedance*]
 
 * Use `Domain` to gather all `Obstacle` objects:
@@ -58,16 +58,16 @@ For instance:
 
     def custom_obstacles(nx, nz):
 
-        geo = [Obstacle([30, 20, 40, 40], 'RRRR'),
-               Obstacle([60, 20, 70, 40], 'RRRR'),
-               Obstacle([90, 20, 100, 40], 'RRRR')]
+        geo = [Obstacle([30, 20, 40, 40], 'WWWW'),
+               Obstacle([60, 20, 70, 40], 'WWWW'),
+               Obstacle([90, 20, 100, 40], 'WWWW')]
 
         return Domain((nx, nz), data=geo)
 
     nx, nz = 128, 64
     dx, dz = 1., 1.
     ix0, iz0 = 0, 0
-    bc = 'ARAR'
+    bc = 'AWAW'
 
     mesh = Mesh((nx, nz), (dx, dz), (ix0, iz0), obstacles=custom_obstacles(nx, nz), bc=bc)
     mesh.plot_grid(pml=True)
@@ -85,8 +85,8 @@ Adaptative mesh example
     shape = (512, 256)	# Dimensions of the grid
     steps = (1, 1)		# grid steps
     ix0, iz0 = 0, 0		# grid origin
-    bc = 'RRRR' 		# Boundary conditions : left, bottom, right, top.
-                            # Can be (R)igid, (A)bsorbing, (P)eriodic, (Z)impedance
+    bc = 'WWWW' 		# Boundary conditions : left, bottom, right, top.
+                                # Can be (W)all, (A)bsorbing, (P)eriodic, (Z)impedance, (R)adiation
 
     # Set up obstacles in the grid with a template
     obstacles = templates.testcase1(*shape)
@@ -110,8 +110,8 @@ Curvilinear mesh example
     shape = (256, 256)       # Dimensions of the grid
     steps = (1e-4, 1e-4)     # grid steps
     origin = (128, 0)        # grid origin
-    bc = 'RRRR'              # Boundary conditions : left, bottom, right, top.
-                             # Can be (R)igid, (A)bsorbing, (P)eriodic, (Z)impedance
+    bc = 'WWWW'              # Boundary conditions : left, bottom, right, top.
+                             # Can be (W)all, (A)bsorbing, (P)eriodic, (Z)impedance, (R)adiation
 
     # Set up obstacles in the grid with a template
     obstacles = templates.helmholtz_double(nx, nz)
@@ -156,8 +156,8 @@ An example is given below:
 
         size = int(min(nx, nz)*size_percent/100)
 
-        obs1 = Obstacle([int(nx/2)-size, int(nz/2)-size, int(nx/2)+size, int(nz/2)+size], 'VVRV')
-        obs2 = Obstacle([nx-11, 0, nx-1, nz-1], 'VRRR')
+        obs1 = Obstacle([int(nx/2)-size, int(nz/2)-size, int(nx/2)+size, int(nz/2)+size], 'VVWV')
+        obs2 = Obstacle([nx-11, 0, nx-1, nz-1], 'VWWW')
 
         obs1.set_moving_bc({'f': 70000, 'A': 1, 'func': 'sine'},
                            {'f': 30000, 'A': -1, 'func': 'tukey'},
@@ -170,7 +170,7 @@ An example is given below:
     nx, nz = 128, 96
     dx, dz = 1., 1.
     ix0, iz0 = 0, 0
-    bc = 'RRRR'
+    bc = 'WWWW'
 
     mesh = Mesh((nx, nz), (dx, dz), (ix0, iz0), obstacles=custom_obstacles(nx, nz), bc=bc)
     mesh.plot_grid(pml=True, legend=True, bc_profiles=True)

@@ -402,7 +402,7 @@ class Domain:
             r = getattr(sub, 'rx')
             axis = 1
 
-        nbc = sub.bc.replace('P', 'R')
+        nbc = sub.bc.replace('P', 'W')
 
         for bound in bounds:
             if set(range(bound[0], bound[1]+1)).issuperset(set(r)):
@@ -419,13 +419,13 @@ class Domain:
         self.additional_rigid_bc = []
 
         for sub in self:
-            if sub.xz[axis] == 0 and sub.bc[axis] == 'R':
+            if sub.xz[axis] == 0 and sub.bc[axis] == 'W':
                 if axis == 0:
                     self.additional_rigid_bc.append((0, sub.sz))
                 elif axis == 1:
                     self.additional_rigid_bc.append((sub.sx, 0))
 
-            elif sub.xz[axis+2] == N-1 and sub.bc[axis+2] == 'R':
+            elif sub.xz[axis+2] == N-1 and sub.bc[axis+2] == 'W':
                 if axis == 0:
                     self.additional_rigid_bc.append((-1, sub.sz))
                 elif axis == 1:
@@ -561,7 +561,7 @@ class Subdomain:
     xz : list
         Coordinates of the Subdomain : left, bottom, right, top
     bc : str
-        Boundary conditions. Must be a string of 4 characters among 'A', 'R', 'Z' and 'P'
+        Boundary conditions. Must be a string of 4 characters among 'A|W|Z|P|R'
     key : int, optional
         Key of the subdomain.
     axis : {0, 1}, optional
@@ -826,7 +826,7 @@ class Obstacle(Subdomain):
     ----------
 
     xz : Coordinates of the Subdomain : left, bottom, right, top
-    bc : Boundary conditions. Must be a string of 4 characters among 'R', 'Z' or 'V'
+    bc : Boundary conditions. Must be a string of 4 characters among 'W|Z|V'
     key : Key of the subdomain. Optional
     axis : 0 or 1. The direction of the subdomain if relevant. Optional.
     tag : str. The type of Subdomain. Optional
@@ -877,7 +877,7 @@ class Obstacle(Subdomain):
         Examples
         --------
 
-        >>> obs1 = Obstacle([10, 10, 100, 100], 'VVRV')
+        >>> obs1 = Obstacle([10, 10, 100, 100], 'VVWV')
 
         >>> obs1.set_moving_bc({'f': 100, 'A': 2.1, 'func': 'sine',
                                 'f_t': 1000, 'A_t': 0.1, 'func_t': 'flat'},
@@ -887,7 +887,7 @@ class Obstacle(Subdomain):
         """
 
         args = iter(list(args) + (4-len(args))*[dict()])
-        self.setup = [{} if b == 'R' else next(args) for b in self.bc]
+        self.setup = [{} if b == 'W' else next(args) for b in self.bc]
 
     def _parse_bc_setup_n(self, setup):
 
