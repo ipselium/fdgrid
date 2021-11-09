@@ -895,10 +895,10 @@ class Obstacle(Subdomain):
 
     def _parse_bc_setup_n(self, setup):
 
-        prof = setup.get('profile_n', setup.get('profile', 'None'))
-        prof = getattr(self, prof, None)
-        wav = setup.get('wav', 'None')
-        func = setup.get('func', 'None')
+        prof = setup.get('profile_n', setup.get('profile', 'flat'))
+        prof = getattr(self, prof, self.flat)
+        wav = setup.get('wav', None)
+        func = setup.get('func', None)
 
         f = setup.get('f_n', setup.get('f', 0))
         phi = setup.get('phi_n', setup.get('phi', 0))
@@ -909,8 +909,8 @@ class Obstacle(Subdomain):
 
     def _parse_bc_setup_t(self, setup):
 
-        prof = setup.get('profile_t', 'None')
-        prof = getattr(self, prof, None)
+        prof = setup.get('profile_t', 'flat')
+        prof = getattr(self, prof, self.flat)
 
         f = setup.get('f_t', 0)
         phi = setup.get('phi_t', 0)
