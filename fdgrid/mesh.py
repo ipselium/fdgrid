@@ -39,6 +39,7 @@ __all__ = ['Mesh', 'AdaptativeMesh', 'CurvilinearMesh']
 
 import re as _re
 import itertools as _itertools
+import dataclasses as _dataclasses
 import numpy as _np
 import matplotlib.pyplot as _plt
 import matplotlib.ticker as _ticker
@@ -391,6 +392,20 @@ class Mesh:
     def get_obstacles(self):
         """ Get a list of the coordinates of all obstacles. """
         return [sub.xz for sub in self.obstacles]
+
+    def get_domains(self):
+        """ Get a list of computational domains.  """
+
+        xdomains = []
+        zdomains = []
+
+        for d in self.domain.listing[0]:
+            xdomains.append(_dataclasses.asdict(d))
+
+        for d in self.domain.listing[1]:
+            zdomains.append(_dataclasses.asdict(d))
+
+        return xdomains, zdomains
 
     @staticmethod
     def show_figures():
