@@ -393,17 +393,25 @@ class Mesh:
         """ Get a list of the coordinates of all obstacles. """
         return [sub.xz for sub in self.obstacles]
 
-    def get_domains(self):
+    def get_domains(self, only_xz=False):
         """ Get a list of computational domains.  """
 
         xdomains = []
         zdomains = []
 
-        for d in self.domain.listing[0]:
-            xdomains.append(_dataclasses.asdict(d))
+        if not only_xz:
+            for d in self.domain.listing[0]:
+                xdomains.append(_dataclasses.asdict(d))
 
-        for d in self.domain.listing[1]:
-            zdomains.append(_dataclasses.asdict(d))
+            for d in self.domain.listing[1]:
+                zdomains.append(_dataclasses.asdict(d))
+
+        else:
+            for d in self.domain.listing[0]:
+                xdomains.append(d.xz)
+
+            for d in self.domain.listing[1]:
+                zdomains.append(d.xz)
 
         return xdomains, zdomains
 
