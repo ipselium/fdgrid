@@ -143,9 +143,10 @@ with the following keys :
 * `f`: the oscillation frequency
 * `A`: the oscillation amplitude
 * `phi`: the phase of oscillation
-* `func`: the oscillation profile of the boundary. For now, it can be 'sine' (sine
-  profile), 'tukey' (tapered cosine profile), or 'flat' (constant profile)
-* `kwargs`: special arguments than can be passed to `func`
+* `profile`: the oscillation profile of the boundary. For now, it can be
+  'sine' (sine profile), 'tukey' (tapered cosine profile)
+* `func` : function describing the time evolution of the bc
+* `kwargs`: special arguments than can be passed to `profile`
 
 An example is given below:
 ::
@@ -159,10 +160,10 @@ An example is given below:
         obs1 = Obstacle([int(nx/2)-size, int(nz/2)-size, int(nx/2)+size, int(nz/2)+size], 'VVWV')
         obs2 = Obstacle([nx-11, 0, nx-1, nz-1], 'VWWW')
 
-        obs1.set_moving_bc({'f': 70000, 'A': 1, 'func': 'sine'},
-                           {'f': 30000, 'A': -1, 'func': 'tukey'},
-                           {'f': 30000, 'A': 1, 'func': 'tukey'})
-        obs2.set_moving_bc({'f': 73000, 'A': -1, 'func': 'flat'})
+        obs1.set_moving_bc({'f': 70000, 'A': 1, 'profile': 'sine'},
+                           {'f': 30000, 'A': -1, 'profile': 'tukey', 'kwargs': {'alpha':0.4}},
+                           {'f': 30000, 'A': 1, 'profile': 'tukey'})
+        obs2.set_moving_bc({'f': 73000, 'A': -1, 'profile': 'tukey'})
 
         return Domain((nx, nz), data=[obs1, obs2])
 

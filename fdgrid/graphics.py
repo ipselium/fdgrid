@@ -211,25 +211,24 @@ def plot_bc_profiles(ax, x, z, obstacles, color='r'):
         zsize = 0.02*(z.max()-z.min())
 
         for bc in obs.edges:
-
             if bc.axis == 1 and len(x.shape) == 1:
-                ax.plot(x[bc.sx], z[bc.sz] + xsize*bc.vn/abs(bc.vn).max(),
+                ax.plot(x[bc.sx], z[bc.sz] + xsize*bc.pn/abs(bc.pn).max(),
                         color=color, linewidth=3, label=f'obs : {i+1}')
 
             elif bc.axis == 0 and len(x.shape) == 1:
-                ax.plot(x[bc.sx] + zsize*bc.vn/abs(bc.vn).max(), z[bc.sz],
+                ax.plot(x[bc.sx] + zsize*bc.pn/abs(bc.pn).max(), z[bc.sz],
                         color=color, linewidth=3, label=f'obs : {i+1}')
 
             elif bc.axis == 1 and len(x.shape) > 1:
                 sz = slice(bc.sz-1, bc.sz+2)
                 im = ax.pcolormesh(x[bc.sx, sz], z[bc.sx, sz],
-                                   _np.tile(bc.vn, (sz.stop-sz.start, 1)).T,
+                                   _np.tile(bc.pn, (sz.stop-sz.start, 1)).T,
                                    cmap=cm, alpha=1)
 
             elif bc.axis == 0 and len(x.shape) > 1:
                 sx = slice(bc.sx-1, bc.sx+2)
                 im = ax.pcolormesh(x[sx, bc.sz], z[sx, bc.sz],
-                                   _np.tile(bc.vn, (sz.stop-sz.start, 1)).T,
+                                   _np.tile(bc.pn, (sz.stop-sz.start, 1)).T,
                                    cmap=cm)
 
     if 'im' in locals():

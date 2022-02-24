@@ -41,11 +41,11 @@ __all__ = ['Domain', 'Subdomain', 'Obstacle']
 import copy as _copy
 import itertools as _itertools
 import numpy as _np
+import scipy.signal as _sps
 import matplotlib.pyplot as _plt
 import matplotlib.patches as _patches
 import dataclasses as _dataclasses
 import fdgrid.utils as _utils
-
 
 class Domain:
     """ Set of Subdomain objects.
@@ -810,12 +810,9 @@ class Edges:
 
     func: str = None
     wav: str = None
-    f0_t: float = 0
-    f0_n: float = 0
-    phi_t: float = 0
-    phi_n: float = 0
+    f0: float = 0
+    phi: float = 0
     pn: _np.ndarray = 0    # profile of the wall
-    pt: _np.ndarray = 0    # profile of the wall
     vn: _np.ndarray = 0    # time evolution of the wall
     vt: _np.ndarray = 0    # time evolution of the wall
     sx: slice = 0
@@ -848,76 +845,54 @@ class Obstacle(Subdomain):
 
         Parameters
         ----------
-        f_n : float, str
+        f : float, str
             frequency of the normal velocity.
-        f_t : float
-            frequency of the tangential velocity.
-        A_n : float
+        A : float
             Amplitude of the normal velocity
-        A_t : float
-            Amplitude of the tangential velocity
-        phi_n : float
+        phi : float
             Phase of the normal velocity
-        phi_t : float
-            Phase of the tangential velocity
-        profile_r : {'sine', 'tukey', 'flat'}
+        profile : {'sine', 'tukey'}
             Function for normal velocity profile construction
-        profile_t : {'sine', 'tukey', 'flat'}
-            Function for tangential velocity profile construction
-        kwargs_n : dict
-            optional arguments for profile_r
-        kwargs_t : dict
-            optional arguments for profile_t
+        kwargs : dict
+            optional arguments for profile
 
         Note
         ----
 
-        `profile_n` and `profile_r` arguments can be:
+        `profile` argument can be:
 
-        * 'sine' : sinus profile => n : wavelength (default: 2 for half period)
-        * 'tukey' : tapered cosine profile => alpha : edge width (default: 0.2)
-        * 'flat' : flat profile
+        * 'sine' : sinus profile. kw: n - wavelength (default: 2 for half period)
+        * 'tukey' : tapered cosine profile. kw: alpha - edge width (default: 0)
 
         Examples
         --------
 
         >>> obs1 = Obstacle([10, 10, 100, 100], 'VVWV')
 
-        >>> obs1.set_moving_bc({'f': 100, 'A': 2.1, 'profile': 'sine',
-                                'f_t': 1000, 'A_t': 0.1, 'profile_t': 'flat'},
+        >>> obs1.set_moving_bc({'f': 100, 'A': 2.1, 'profile': 'sine'},
                                {'f': 500, 'A': -1.5, 'profile': 'tukey'},
-                               {'f': 500, 'A': 1.5 'profile': 'tukey'})
+                               {'f': 500, 'A': 1.5 'profile': 'tukey', 'kwargs':{'alpha': 0.4}})
 
         """
 
         args = iter(list(args) + (4-len(args))*[{}])
         self.setup = [{} if b == 'W' else next(args) for b in self.bc]
 
-    def _parse_bc_setup_n(self, setup):
+    def _parse_bc_setup(self, setup):
 
-        prof = setup.get('profile_n', setup.get('profile', 'flat'))
-        prof = getattr(self, prof, self.flat)
+        prof = setup.get('profile', 'tukey')
+        prof = getattr(self, prof, self.tukey)
         wav = setup.get('wav', None)
         func = setup.get('func', None)
 
-        f = setup.get('f_n', setup.get('f', 0))
-        phi = setup.get('phi_n', setup.get('phi', 0))
-        A = setup.get('A_n', setup.get('A', 0))
-        kwargs = setup.get('kwargs_n', setup.get('kwargs', {}))
+        f = setup.get('f', setup.get('f', 0))
+        phi = setup.get('phi', setup.get('phi', 0))
+        A = setup.get('A', setup.get('A', 0))
+        kwargs = setup.get('kwargs', {})
 
-        return prof, f, phi, A, kwargs, wav, func
+        tag = True if wav or func or f else False
 
-    def _parse_bc_setup_t(self, setup):
-
-        prof = setup.get('profile_t', 'flat')
-        prof = getattr(self, prof, self.flat)
-
-        f = setup.get('f_t', 0)
-        phi = setup.get('phi_t', 0)
-        A = setup.get('A_t', 0)
-        kwargs = setup.get('kwargs_t', {})
-
-        return prof, f, phi, A, kwargs
+        return tag, prof, f, phi, A, kwargs, wav, func
 
     def make_moving_bc(self, x, z, LOG=False):
         """ Construct moving boundaries. """
@@ -950,62 +925,42 @@ class Obstacle(Subdomain):
 
     def _make_moving_bc_cartesian(self, i, x, z):
 
-        prof_n, f_n, phi_n, A_n, kw_n, wav, func = self._parse_bc_setup_n(self.setup[i])
-        prof_t, f_t, phi_t, A_t, kw_t = self._parse_bc_setup_t(self.setup[i])
-
-        d = {'axis': i % 2, 'wav': wav, 'func': func}
+        tag, prof, f, phi, A, kw, wav, func = self._parse_bc_setup(self.setup[i])
+        d = {'f0': f, 'phi': phi, 'axis': i % 2, 'wav': wav, 'func': func}
 
         if i % 2 == 0:    # following x
             d['sx'] = self.xz[i]
             d['sz'] = self.sz
-            if prof_n:
-                d.update({'f0_n': f_n, 'phi_n': phi_n})
-                d['pn'] = A_n*prof_n(z, self.sz, **kw_n)
-            if prof_t:
-                d.update({'f0_t': f_t, 'phi_t': phi_t})
-                d['pt'] = A_t*prof_t(z, self.sz, **kw_t)
+            if prof and tag:
+                d['pn'] = A*prof(z, self.sz, **kw)
 
         else:           # following z
             d['sx'] = self.sx
             d['sz'] = self.xz[i]
-            if prof_n:
-                d.update({'f0_n': f_n, 'phi_n': phi_n})
-                d['pn'] = A_n*prof_n(x, self.sx, **kw_n)
-            if prof_t:
-                d.update({'f0_t': f_t, 'phi_t': phi_t})
-                d['pt'] = A_t*prof_t(x, self.sx, **kw_t)
+            if prof and tag:
+                d['pn'] = A*prof(x, self.sx, **kw)
 
-        if prof_n or prof_t:
+        if prof and tag:
             self.edges.append(Edges(**d))
 
     def _make_moving_bc_curvilinear(self, i, x, z):
 
-        prof_n, f_n, phi_n, A_n, kw_n, wav, func = self._parse_bc_setup_n(self.setup[i])
-        prof_t, f_t, phi_t, A_t, kw_t = self._parse_bc_setup_t(self.setup[i])
-
-        d = {'axis': i % 2, 'wav': wav, 'func': func}
+        tag, prof, f, phi, A, kw, wav, func = self._parse_bc_setup(self.setup[i])
+        d = {'f0': f, 'phi': phi, 'axis': i % 2, 'wav': wav, 'func': func}
 
         if i % 2 == 0:    # following x
             d['sx'] = self.xz[i]
             d['sz'] = self.sz
-            if prof_n:
-                d.update({'f0_n': f_n, 'phi_n': phi_n})
-                d['pn'] = A_n*prof_n(z[self.xz[i], :], self.sz, **kw_n)
-            if prof_t:
-                d.update({'f0_t': f_t, 'phi_t': phi_t})
-                d['pt'] = A_t*prof_t(z[self.xz[i], :], self.sz, **kw_t)
+            if prof and tag:
+                d['pn'] = A*prof(z[self.xz[i], :], self.sz, **kw)
 
         else:           # following z
             d['sx'] = self.sx
             d['sz'] = self.xz[i]
-            if prof_n:
-                d.update({'f0_n': f_n, 'phi_n': phi_n})
-                d['pn'] = A_n*prof_n(x[:, self.xz[i]], self.sx, **kw_n)
-            if prof_t:
-                d.update({'f0_t': f_t, 'phi_t': phi_t})
-                d['pt'] = A_t*prof_t(x[:, self.xz[i]], self.sx, **kw_t)
+            if prof and tag:
+                d['pn'] = A*prof(x[:, self.xz[i]], self.sx, **kw)
 
-        if prof_n or prof_t:
+        if prof and tag:
             self.edges.append(Edges(**d))
 
     @staticmethod
@@ -1019,31 +974,10 @@ class Obstacle(Subdomain):
         return _np.sin(kL*(c[sc] - c[sc.start]))
 
     @staticmethod
-    def tukey(c, sc, **kwargs):
+    def tukey(_, sc, **kwargs):
         """ Tapered cosine profile. """
 
-        L = c[sc.stop-1] - c[sc.start]
         N = sc.stop - sc.start
+        alpha = kwargs.get('alpha', 0)
 
-        alpha = kwargs.get('alpha', 0.2)
-        edges = L*alpha/2
-
-        Nmin = max(1, abs(c - (c[sc.start] + edges)).argmin() - sc.start)
-        Nmax = min(N-1, abs(c - (c[sc.stop] - edges)).argmin() - sc.start)
-
-        nmin = _np.linspace(0, alpha*(N-1)/2, Nmin)
-        nmax = _np.linspace((N+1)*(1-alpha/2), N, N - Nmax)
-
-        tukmin = 0.5*(1 + _np.cos(_np.pi*(2*nmin/(alpha*N) + 1)))
-        tukmax = 0.5*(1 + _np.cos(_np.pi*(2*nmax/(alpha*N) - 2/alpha + 1)))
-
-        tukmin[0] = 0
-        tukmax[-1] = 0
-
-        return _np.concatenate((tukmin, _np.ones(max(0, Nmax-Nmin)), tukmax))
-
-    @staticmethod
-    def flat(*args):
-        """ flat profile. """
-
-        return _np.ones(args[1].stop-args[1].start)
+        return _sps.tukey(N, alpha=alpha)

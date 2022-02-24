@@ -63,7 +63,7 @@ def curvz(xn, zn):
     xp = xn.copy()
     zp = zn \
         + _np.linspace(0.5, 0, zn.shape[1])*(_np.sin(2*_np.pi*xp/(xp.max()/10))/5000 \
-                                            - 5*xp**2)
+                                             - 5*xp**2)
     return xp, zp
 
 
@@ -318,9 +318,11 @@ def moving_square(nx, nz, size_percent=20):
     obs2 = Obstacle([nx-11, 0, nx-1, nz-1], 'VWWW')
 
     obs1.set_moving_bc({'f': 70000, 'A': 1, 'func': 'sine'},
-                       {'f': 30000, 'A': -1, 'func': 'tukey'},
-                       {'f': 30000, 'A': 1, 'func': 'tukey'})
-    obs2.set_moving_bc({'f': 73000, 'A': -1, 'func': 'flat'})
+                       {'f': 30000, 'A': -1, 'func': 'tukey',
+                        'kwargs': {'alpha': 0.2}},
+                       {'f': 30000, 'A': 1, 'func': 'tukey',
+                        'kwargs': {'alpha': 0.2}})
+    obs2.set_moving_bc({'f': 73000, 'A': -1, 'func': 'tukey'})
 
     return Domain((nx, nz), data=[obs1, obs2])
 
