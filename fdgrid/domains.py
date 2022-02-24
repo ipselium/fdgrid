@@ -871,7 +871,7 @@ class Obstacle(Subdomain):
 
         >>> obs1.set_moving_bc({'f': 100, 'A': 2.1, 'profile': 'sine'},
                                {'f': 500, 'A': -1.5, 'profile': 'tukey'},
-                               {'f': 500, 'A': 1.5 'profile': 'tukey', 'kwargs':{'alpha': 0.4}})
+                               {'f': 500, 'A': 1.5 'profile': 'tukey', 'kwargs': {'alpha': 0.4}})
 
         """
 

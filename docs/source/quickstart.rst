@@ -89,7 +89,7 @@ Adaptative mesh example
                                 # Can be (W)all, (A)bsorbing, (P)eriodic, (Z)impedance, (R)adiation
 
     # Set up obstacles in the grid with a template
-    obstacles = templates.testcase1(*shape)
+    obstacles = templates.street(*shape)
 
     # Generate AdaptativeMesh object
     msh = AdaptativeMesh(shape, steps, (ix0, iz0), obstacles=obstacles, bc=bc)
@@ -111,13 +111,14 @@ Curvilinear mesh example
     steps = (1e-4, 1e-4)     # grid steps
     origin = (128, 0)        # grid origin
     bc = 'WWWW'              # Boundary conditions : left, bottom, right, top.
-                             # Can be (W)all, (A)bsorbing, (P)eriodic, (Z)impedance, (R)adiation
+                            # Can be (W)all, (A)bsorbing, (P)eriodic, (Z)impedance, (R)adiation
 
     # Set up obstacles in the grid with a template
-    obstacles = templates.helmholtz_double(nx, nz)
+    obstacles = templates.helmholtz_double(*shape)
 
     # Setup curvilinear transformation
     def curv(xn, zn):
+        dx = xn[1] - xn[0]
         f = 5*dx
         xp = xn.copy()
         zp = zn + np.exp(-np.linspace(0, 10, zn.shape[1]))*np.sin(2*np.pi*f*xn/xn.max()/2)
@@ -146,7 +147,10 @@ with the following keys :
 * `profile`: the oscillation profile of the boundary. For now, it can be
   'sine' (sine profile), 'tukey' (tapered cosine profile)
 * `func` : function describing the time evolution of the bc
-* `kwargs`: special arguments than can be passed to `profile`
+* `kwargs`: special arguments than can be passed to `profile`:
+
+    * for 'tukey', can be 'alpha', the shape parameter (between 0 and 1)
+    * for 'sine', can be 'n', the period fraction (1 stands for a complete period, 2 for half a period)
 
 An example is given below:
 ::
@@ -160,9 +164,9 @@ An example is given below:
         obs1 = Obstacle([int(nx/2)-size, int(nz/2)-size, int(nx/2)+size, int(nz/2)+size], 'VVWV')
         obs2 = Obstacle([nx-11, 0, nx-1, nz-1], 'VWWW')
 
-        obs1.set_moving_bc({'f': 70000, 'A': 1, 'profile': 'sine'},
-                           {'f': 30000, 'A': -1, 'profile': 'tukey', 'kwargs': {'alpha':0.4}},
-                           {'f': 30000, 'A': 1, 'profile': 'tukey'})
+        obs1.set_moving_bc({'f': 70000, 'A': 1, 'profile': 'sine', 'kwargs': {'n': 1}},
+                           {'f': 30000, 'A': -1, 'profile': 'tukey', 'kwargs': {'alpha':0.2}},
+                           {'f': 30000, 'A': 1, 'profile': 'tukey', 'kwargs': {'alpha':0.2}})
         obs2.set_moving_bc({'f': 73000, 'A': -1, 'profile': 'tukey'})
 
         return Domain((nx, nz), data=[obs1, obs2])
