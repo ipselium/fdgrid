@@ -28,14 +28,15 @@
 
 Module `mesh` provides three classes to build meshes:
 
-    * :py:class:`Mesh`: Build regular cartesian mesh
+    * :py:function:`build`: Build a mesh
+    * :py:class:`RegularMesh`: Build regular cartesian mesh
     * :py:class:`AdaptativeMesh`: Build adaptative cartesian mesh
     * :py:class:`CurvilinearMesh`: Build curvilinear mesh
 
 -----------
 """
 
-__all__ = ['Mesh', 'AdaptativeMesh', 'CurvilinearMesh']
+__all__ = ['build', 'RegularMesh', 'AdaptativeMesh', 'CurvilinearMesh']
 
 import re as _re
 import itertools as _itertools
@@ -51,7 +52,69 @@ from fdgrid.cdomain import ComputationDomains
 from fdgrid.templates import curv as _curv
 
 
-class Mesh:
+def build(mesh_type, shape, step, origin=(0, 0), bc='WWWW', obstacles=None,
+          Npml=15, stencil=11,
+          dilatation=3., Nd=23, only_pml=False,  # for adaptative
+          fcurvxz=None):                         # for curvilinear
+    """Build mesh.
+
+    Parameters
+    ----------
+    shape : tuple
+        Size of the domain. Must be a tuple with two int objects.
+    step : tuple
+        Spatial steps. Must be a tuple with two float objects.
+    origin : tuple, optional
+        Origin of the grid. Must be a tuple with two int objects.
+    bc : {'[ARZPW][ARZPW][ARZPW][ARZPW]'}, optional
+        Boundary conditions. Must be a 4 characters string.
+    obstacles : :py:class:`fdgrid.domains.Domain`, optional
+        Obstacles in the computation domain.
+    Npml : int, optional
+        Number of points of the absorbing area (only if 'A' in `bc`).
+    stencil : int, optional
+        Size of the finite difference stencil (used by :py:mod:`nsfds2`).
+    dilatation : float
+        dilatation rate over `Nd` points [for adaptative mesh].
+    Nd : int
+        Number of point of adaptative areas [for adaptative mesh].
+    only_pml : bool
+        Only adapt grid in PML areas [for adaptative mesh].
+    fcurvxz : function, optional
+        Function taking as input arguments the numerical coordinates
+        ('xn', 'yn') and returning the physical coordinates ('xp', 'zp')
+        [for curvilinear mesh].
+
+    Returns
+    -------
+    mesh : the mesh object
+
+    See also
+    --------
+    :py:class:`RegularMesh`,
+    :py:class:`AdaptativeMesh`,
+    :py:class:`CurvilinearMesh`,
+    :py:mod:`fdgrid.templates`
+    """
+
+    if mesh_type.lower() == 'regular':
+        return RegularMesh(shape, step, origin=origin,
+                           bc=bc, obstacles=obstacles,
+                           Npml=Npml, stencil=stencil)
+    elif mesh_type.lower() == 'adaptative':
+        return AdaptativeMesh(shape, step, origin=origin,
+                              bc=bc, obstacles=obstacles,
+                              Npml=Npml, stencil=stencil,
+                              dilatation=dilatation, Nd=Nd, only_pml=only_pml)
+    elif mesh_type.lower() == 'curvilinear':
+        return CurvilinearMesh(shape, step, origin=origin,
+                               bc=bc, obstacles=obstacles,
+                               Npml=Npml, stencil=stencil, fcurvxz=fcurvxz)
+
+    raise ValueError('Mesh type must ne regular, adaptative, or curvilinear')
+
+
+class RegularMesh:
     """ Build cartesian regular grid
 
     Parameters
@@ -434,7 +497,7 @@ class Mesh:
         return self.__str__()
 
 
-class AdaptativeMesh(Mesh):
+class AdaptativeMesh(RegularMesh):
     """ Build cartesian adaptative grid
 
     Parameters
@@ -448,7 +511,8 @@ class AdaptativeMesh(Mesh):
 
     See also
     --------
-    :py:class:`Mesh`,
+    :py:class:`RegularMesh`,
+    :py:class:`CurvilinearMesh`,
     :py:mod:`fdgrid.templates`
 
     """
@@ -671,7 +735,7 @@ class AdaptativeMesh(Mesh):
         return s.format(self.nx, self.nz, self.bc)
 
 
-class CurvilinearMesh(Mesh):
+class CurvilinearMesh(RegularMesh):
     """ Build curvilinear grid
 
     Parameters
@@ -682,7 +746,8 @@ class CurvilinearMesh(Mesh):
 
     See also
     --------
-    :py:class:`Mesh`,
+    :py:class:`RegularMesh`,
+    :py:class:`AdaptativeMesh`,
     :py:mod:`fdgrid.templates`
     """
 

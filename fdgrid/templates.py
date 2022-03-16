@@ -70,9 +70,9 @@ def curvz(xn, zn):
 def circle(xn, zn):
     """ Curvilinear coordinates: test case 3. The circle. """
 
+    dx = xn[1, 0] - xn[0, 0]
     width = xn[-1, 0] - xn[0, 0]
-    dx = xn[1, 0] - x[0, 0]
-    R = (width+dx)/(2*_np.pi)
+    R = (width + dx)/(2*_np.pi)
     xp = (zn + R)*_np.sin(xn/R)
     zp = (zn + R)*_np.cos(xn/R)
 
