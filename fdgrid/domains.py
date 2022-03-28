@@ -584,6 +584,8 @@ class Subdomain:
         self.rz = range(self.xz[1], self.xz[3]+1)
         self.sx = slice(self.xz[0], self.xz[2]+1)
         self.sz = slice(self.xz[1], self.xz[3]+1)
+        self.bsize = (self.xz[2] + 1 - self.xz[0]) * \
+                     (self.xz[3] + 1 - self.xz[1])*8e-6
 
     @property
     def axname(self):

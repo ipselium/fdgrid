@@ -589,7 +589,7 @@ class ComputationDomains:
 
     @property
     def dsdomains(self):
-        """ Returns the smallest domain amond derivative domains. """
+        """ Returns the smallest domain among derivative domains. """
         return self.dxdomains if len(self.dxdomains) < len(self.dzdomains) else self.dzdomains
 
     @property
